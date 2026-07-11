@@ -262,6 +262,7 @@ main{max-width:1050px;margin:auto;padding:14px 14px 118px}
 <div class="field"><label>Modèle</label><input id="set_model" placeholder="claude-sonnet-4-6"></div>
 <div class="actionrow"><button class="btn primary" id="saveSettings">Enregistrer</button><button class="btn secondary" id="closeSettings">Fermer</button></div>
 <div class="actionrow" style="margin-top:6px"><button class="btn secondary" id="importMore">📸 Importer d’autres factures</button><button class="btn secondary" id="loadDemo">📋 Charger l’exemple</button></div>
+<div class="actionrow" style="margin-top:6px"><button class="btn secondary" id="seedDemo">🧪 Ajouter historique de démo</button><button class="btn secondary" id="clearDemo">🧹 Vider l’historique démo</button></div>
 <div class="actionrow" style="margin-top:6px"><button class="btn secondary" id="rerunSetup">🔁 Relancer la configuration</button><button class="btn danger" id="resetAll">🗑 Réinitialiser tout</button></div>
 </div></div>
 
@@ -1665,6 +1666,44 @@ $("saveSettings").onclick=()=>{config.restaurant={name:$("set_name").value.trim(
 $("importMore").onclick=()=>{$("settingsModal").classList.remove("show");jumpToImport()};
 $("rerunSetup").onclick=()=>{$("settingsModal").classList.remove("show");startOnboarding(true)};
 $("loadDemo").onclick=()=>{if(confirm("Charger l’exemple L'Auberge Provençale ? La configuration actuelle sera remplacée.")){config=demoConfig();saveCfg();loadData();updateHeader();$("settingsModal").classList.remove("show");home();toast("Exemple chargé")}};
+function seedDemoHistory(){
+ if(!suppliers.length||!products.length){alert("Ajoutez d’abord des produits et des fournisseurs.");return}
+ if(!confirm("Ajouter 6 semaines de commandes de démonstration à l’historique (fournisseurs et produits actuels) ?"))return;
+ let seed=42;const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return (seed%1000)/1000};
+ const pick=(arr,n)=>{const c=[...arr];const out=[];for(let i=0;i<n&&c.length;i++)out.push(c.splice(Math.floor(rnd()*c.length),1)[0]);return out};
+ const now=new Date();let n=0;const orders=[];
+ suppliers.forEach(sup=>{
+  const prods=products.filter(p=>prodSuppliers(p).includes(sup.id));
+  if(!prods.length)return;
+  for(let weeksAgo=6;weeksAgo>=1;weeksAgo--){
+   const date=new Date(now.getTime()-weeksAgo*7*24*60*60*1000);
+   const chosen=pick(prods,Math.min(prods.length,2+Math.floor(rnd()*2)));
+   if(!chosen.length)continue;
+   const items=chosen.map(pr=>{const price=Math.max(0.1,(pr.estimatedPrice||5)*(0.94+rnd()*0.12));const qty=Math.round((2+rnd()*8)*10)/10;return {name:pr.name,qty,unit:pr.unit,packaging:pr.packaging||"",price:Math.round(price*100)/100,delivered:qty}});
+   const receivedDate=new Date(date.getTime()+24*60*60*1000);
+   orders.push({id:"demo"+(n++)+"_"+sup.id+"_"+weeksAgo,date:date.toISOString(),supplierId:sup.id,delivery:"Livraison",deliveryISO:receivedDate.toISOString().slice(0,10),status:"Réceptionnée",receivedAt:receivedDate.toISOString(),items});
+  }
+  const chosen=pick(prods,Math.min(prods.length,2));
+  if(chosen.length){
+   const items=chosen.map(pr=>{const qty=Math.round((2+rnd()*8)*10)/10;return {name:pr.name,qty,unit:pr.unit,packaging:pr.packaging||"",price:pr.estimatedPrice||5}});
+   const deliv=new Date(now.getTime()+24*60*60*1000);
+   orders.push({id:"demo"+(n++)+"_"+sup.id+"_open",date:now.toISOString(),supplierId:sup.id,delivery:"Demain",deliveryISO:deliv.toISOString().slice(0,10),status:"Envoyée",items});
+  }
+ });
+ state.history=[...orders.reverse(),...state.history];save();
+ toast(`${orders.length} commandes de démo ajoutées ✓`);
+ $("settingsModal").classList.remove("show");
+ home();
+}
+function clearDemoHistory(){
+ if(!confirm("Supprimer toutes les commandes de démo ajoutées ?"))return;
+ state.history=state.history.filter(h=>!String(h.id).startsWith("demo"));save();
+ toast("Historique de démo supprimé");
+ $("settingsModal").classList.remove("show");
+ home();
+}
+$("seedDemo").onclick=seedDemoHistory;
+$("clearDemo").onclick=clearDemoHistory;
 $("resetAll").onclick=()=>{if(confirm("Réinitialiser TOUTE l’application ? Irréversible.")){localStorage.removeItem(CFG_KEY);localStorage.removeItem(RUN_KEY);location.hash="";location.reload()}};
 
 /* ============================================================
