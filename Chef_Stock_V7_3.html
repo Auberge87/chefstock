@@ -122,6 +122,7 @@ main{max-width:1050px;margin:auto;padding:14px 14px 118px}
 <!-- PRODUCT MANAGEMENT -->
 <section id="manage" class="screen">
  <div class="top"><button class="btn secondary sm" data-home>← Accueil</button><h2>Gérer les produits</h2><button class="btn primary sm" id="addProductBtn">＋ Nouveau</button></div>
+ <div class="segmented" id="manageSortToggle"><button data-sort="name">Par nom</button><button data-sort="supplier">Par fournisseur</button></div>
  <div class="toolbar"><input id="manageSearch" class="search" placeholder="Rechercher…"><button class="btn secondary" id="findDupBtn">🔎 Doublons</button></div>
  <div id="manageList" class="list"></div>
 </section>
@@ -283,7 +284,7 @@ function findMaybeDuplicate(cand,excludeId){return bestMatch(cand,SIM_MAYBE,excl
 /* ---------- storage ---------- */
 let config=JSON.parse(localStorage.getItem(CFG_KEY)||"null");
 const saved=JSON.parse(localStorage.getItem(RUN_KEY)||"{}");
-const state={q:saved.q||{},supplier:saved.supplier||{},history:saved.history||[],quickOverrides:saved.quickOverrides||{},deleted:saved.deleted||{},savedDrafts:saved.savedDrafts||[],browseMode:saved.browseMode||"supplier",productHistory:saved.productHistory||{},expandedCategories:{},inventory:saved.inventory||{},mode:"tomorrow",date:"",selectedOnly:false,cat:"Tous",drafts:[],supplierFilter:"",previewIndex:0,editId:null,statRange:"month"};
+const state={q:saved.q||{},supplier:saved.supplier||{},history:saved.history||[],quickOverrides:saved.quickOverrides||{},deleted:saved.deleted||{},savedDrafts:saved.savedDrafts||[],browseMode:saved.browseMode||"supplier",productHistory:saved.productHistory||{},expandedCategories:{},inventory:saved.inventory||{},mode:"tomorrow",date:"",selectedOnly:false,cat:"Tous",drafts:[],supplierFilter:"",previewIndex:0,editId:null,statRange:"month",manageSort:"name"};
 function save(){localStorage.setItem(RUN_KEY,JSON.stringify({q:state.q,supplier:state.supplier,history:state.history,quickOverrides:state.quickOverrides,deleted:state.deleted,savedDrafts:state.savedDrafts,browseMode:state.browseMode,productHistory:state.productHistory||{},inventory:state.inventory||{},v72bm:true}))}
 if(!saved.v72bm){state.browseMode="supplier";save();}
 function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(config))}
@@ -827,10 +828,19 @@ function syncBottom(){const n=selectionCount();$("prepare").textContent=n?`Prép
    ============================================================ */
 function refreshAfterProductChange(){if($("products").classList.contains("active"))renderProducts();else if($("manage").classList.contains("active"))renderManage()}
 function renderManage(){const term=($("manageSearch").value||"").toLowerCase();
+ document.querySelectorAll("#manageSortToggle [data-sort]").forEach(b=>b.classList.toggle("active",b.dataset.sort===state.manageSort));
  const list=(config.products||[]).filter(p=>p.name.toLowerCase().includes(term)).slice().sort((a,b)=>a.name.localeCompare(b.name,"fr"));
- $("manageList").innerHTML=list.map(p=>{const sups=(p.suppliers&&p.suppliers.length?p.suppliers:[p.supplier]).filter(Boolean);const meta=[p.category,p.unit,p.packaging].filter(Boolean).join(" · ");
+ const row=p=>{const sups=(p.suppliers&&p.suppliers.length?p.suppliers:[p.supplier]).filter(Boolean);const meta=[p.category,p.unit,p.packaging].filter(Boolean).join(" · ");
   return `<div class="item"><div class="mrow"><div style="min-width:0"><div class="name">${esc(p.name)}</div><div class="meta">${esc(meta)}${sups.length?" · "+sups.map(id=>esc(supplier(id).icon)).join(""):""}</div></div>
-  <div class="acts"><button class="icobtn" data-edit="${esc(p.id)}">✏️</button><button class="icobtn d" data-del="${esc(p.id)}">🗑</button></div></div></div>`}).join("")||'<div class="box">Aucun produit. Touchez « ＋ Nouveau » pour en ajouter un.</div>';
+  <div class="acts"><button class="icobtn" data-edit="${esc(p.id)}">✏️</button><button class="icobtn d" data-del="${esc(p.id)}">🗑</button></div></div></div>`};
+ if(state.manageSort==="supplier"){
+  const groups=suppliers.map(s=>({s,prods:list.filter(p=>prodSuppliers(p).includes(s.id))})).filter(g=>g.prods.length);
+  const none=list.filter(p=>!prodSuppliers(p).length);
+  if(none.length)groups.push({s:{icon:"❔",name:"Sans fournisseur"},prods:none});
+  $("manageList").innerHTML=groups.map(g=>`<div style="margin-bottom:14px"><h4 style="margin:0 0 8px;font-size:14px;font-weight:600;color:var(--g)">${esc(g.s.icon)} ${esc(g.s.name)} <span class="small" style="color:var(--muted);font-weight:400">(${g.prods.length})</span></h4><div class="list" style="gap:8px">${g.prods.map(row).join("")}</div></div>`).join("")||'<div class="box">Aucun produit. Touchez « ＋ Nouveau » pour en ajouter un.</div>';
+ }else{
+  $("manageList").innerHTML=list.map(row).join("")||'<div class="box">Aucun produit. Touchez « ＋ Nouveau » pour en ajouter un.</div>';
+ }
  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openProductModal(b.dataset.edit));
  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>deleteProductFull(b.dataset.del));
 }
@@ -1644,6 +1654,7 @@ $("resetAll").onclick=()=>{if(confirm("Réinitialiser TOUTE l’application ? Ir
 document.querySelectorAll("[data-home]").forEach(b=>b.onclick=home);
 $("search").oninput=renderProducts;
 $("manageSearch").oninput=renderManage;
+document.querySelectorAll("#manageSortToggle [data-sort]").forEach(b=>b.onclick=()=>{state.manageSort=b.dataset.sort;renderManage()});
 $("manageBtn").onclick=()=>navigateTo("manage");
 $("addProductBtn").onclick=()=>openProductModal(null);
 $("findDupBtn").onclick=openMergeTool;
