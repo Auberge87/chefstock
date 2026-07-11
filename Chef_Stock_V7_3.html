@@ -991,7 +991,7 @@ function computeReconcile(order){
 }
 function renderReception(){
  if(!recep)recep=newRecep();
- const sent=state.history.filter(h=>h.items&&h.items.length);
+ const sent=state.history.filter(h=>h.items&&h.items.length&&isOpenDelivery(h));
  let html=`<div class="info">📸 Le fournisseur arrive ? Prenez une photo du bon de livraison ou de la facture : Chef Stock la compare à votre commande et repère écarts, manquants, produits en trop et nouveaux produits.</div>`;
  const priceChanges=detectPriceChanges();
  if(priceChanges.length){
@@ -1003,7 +1003,7 @@ function renderReception(){
   });
   html+=`</div></div></div>`;
  }
- html+=`<div class="box"><div class="field"><label>Commande reçue</label><div class="rowline" style="gap:10px">${sent.length?sent.map(h=>{const sup=supplier(h.supplierId);const active=recep.orderId===h.id;return `<button type="button" class="btn secondary" data-recep-order="${esc(h.id)}" title="${esc(orderLabel(h))}" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 14px;border-radius:16px;min-width:64px;${active?"border-color:var(--g);background:#eaf3ef":""}"><span style="font-size:26px;line-height:1">${esc(sup.icon)}</span><span class="small" style="font-size:11px">${new Date(h.date).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span><span style="position:absolute;top:-6px;right:-6px;background:#fff;border:1px solid var(--line);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px">📷</span></button>`}).join(""):'<div class="small">Aucune commande enregistrée</div>'}</div></div>
+ html+=`<div class="box"><div class="field"><label>Commande reçue</label><div class="rowline" style="gap:10px;align-items:stretch">${sent.length?sent.map(h=>{const sup=supplier(h.supplierId);const active=recep.orderId===h.id;return `<button type="button" class="btn secondary" data-recep-order="${esc(h.id)}" title="${esc(orderLabel(h))}" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 14px;border-radius:16px;min-width:78px;${active?"border-color:var(--g);background:#eaf3ef":""}"><span style="font-size:26px;line-height:1">${esc(sup.icon)}</span><span style="font-weight:600;font-size:13px;margin-top:2px">${esc(sup.name)}</span><span class="small" style="font-size:11px">${new Date(h.date).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})} · ${esc(h.status||"Envoyée")}</span><span style="position:absolute;top:-6px;right:-6px;background:#fff;border:1px solid var(--line);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px">📷</span></button>`}).join(""):'<div class="small">Aucune commande en attente de réception 🎉</div>'}</div></div>
   <div class="field"><label>Bon de livraison / facture</label>
    <div class="dropzone"><div class="big">📄</div><div class="small" style="margin-top:2px">Une ou plusieurs pages</div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><label for="recepPhotos_cam">📷 Prendre une photo</label><label for="recepPhotos_up" class="upload">📁 Choisir un fichier</label><button type="button" class="webcam" id="recep_webcam">📹 Webcam</button></div>
