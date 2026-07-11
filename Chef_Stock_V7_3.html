@@ -286,8 +286,8 @@ function findMaybeDuplicate(cand,excludeId){return bestMatch(cand,SIM_MAYBE,excl
 /* ---------- storage ---------- */
 let config=JSON.parse(localStorage.getItem(CFG_KEY)||"null");
 const saved=JSON.parse(localStorage.getItem(RUN_KEY)||"{}");
-const state={q:saved.q||{},supplier:saved.supplier||{},history:saved.history||[],quickOverrides:saved.quickOverrides||{},deleted:saved.deleted||{},savedDrafts:saved.savedDrafts||[],browseMode:saved.browseMode||"supplier",productHistory:saved.productHistory||{},expandedCategories:{},inventory:saved.inventory||{},mode:"tomorrow",date:"",selectedOnly:false,cat:"Tous",drafts:[],supplierFilter:"",previewIndex:0,editId:null,statRange:"month",manageSort:"name",manageSupplierFilter:""};
-function save(){localStorage.setItem(RUN_KEY,JSON.stringify({q:state.q,supplier:state.supplier,history:state.history,quickOverrides:state.quickOverrides,deleted:state.deleted,savedDrafts:state.savedDrafts,browseMode:state.browseMode,productHistory:state.productHistory||{},inventory:state.inventory||{},v72bm:true}))}
+const state={q:saved.q||{},supplier:saved.supplier||{},history:saved.history||[],quickOverrides:saved.quickOverrides||{},deleted:saved.deleted||{},savedDrafts:saved.savedDrafts||[],browseMode:saved.browseMode||"supplier",productHistory:saved.productHistory||{},expandedCategories:{},inventory:saved.inventory||{},mode:"tomorrow",date:"",selectedOnly:false,cat:"Tous",drafts:[],supplierFilter:"",previewIndex:0,editId:null,statRange:"month",manageSort:"name",manageSupplierFilter:"",dismissedAlerts:saved.dismissedAlerts||{}};
+function save(){localStorage.setItem(RUN_KEY,JSON.stringify({q:state.q,supplier:state.supplier,history:state.history,quickOverrides:state.quickOverrides,deleted:state.deleted,savedDrafts:state.savedDrafts,browseMode:state.browseMode,productHistory:state.productHistory||{},inventory:state.inventory||{},dismissedAlerts:state.dismissedAlerts||{},v72bm:true}))}
 if(!saved.v72bm){state.browseMode="supplier";save();}
 function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(config))}
 
@@ -1410,7 +1410,10 @@ function renderStatisticsWithCharts(){
  if(Object.keys(bySupplier).length){
   html+=`<div class="box" style="margin-bottom:14px">
    <h4 style="margin:0 0 10px;font-weight:600">Dépenses par fournisseur</h4>
-   <canvas id="chartSupplier" style="max-height:250px"></canvas>
+   <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+    <div style="flex:1 1 200px;min-width:180px"><canvas id="chartSupplier" style="max-height:250px"></canvas></div>
+    <div id="chartSupplierLegend" style="flex:1 1 160px;min-width:150px"></div>
+   </div>
   </div>`;
  }
  
@@ -1483,11 +1486,21 @@ function drawSupplierChart(bySupplier){
   const autres=rest.reduce((s,e)=>s+e[1].total,0);
   sorted=[...head,["Autres",{total:autres}]];
  }
+ const colors=sorted.map((_,i)=>CHART_CATEGORICAL[i]||"#898781");
  chartInstances.supplier=new Chart(ctx,{
   type:"pie",
-  data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>e[1].total),backgroundColor:sorted.map((_,i)=>CHART_CATEGORICAL[i]||"#898781")}]},
-  options:{responsive:true,plugins:{legend:{position:"bottom"}}}
+  data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>e[1].total),backgroundColor:colors}]},
+  options:{responsive:true,plugins:{legend:{display:false}}}
  });
+ const legendEl=document.getElementById("chartSupplierLegend");
+ if(legendEl){
+  const total=sorted.reduce((s,e)=>s+e[1].total,0);
+  legendEl.innerHTML=sorted.map((e,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0">
+    <span style="width:12px;height:12px;border-radius:50%;background:${colors[i]};flex:none"></span>
+    <span style="flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e[0])}</span>
+    <span style="font-weight:600;font-size:13px;white-space:nowrap">${e[1].total.toFixed(2)} €</span>
+   </div>`).join("")+(total>0?`<div class="small" style="margin-top:8px;color:var(--muted)">Total : ${total.toFixed(2)} €</div>`:"");
+ }
 }
 function drawPriceChart(priceHistory){
  const ctx=document.getElementById("chartPrices");if(!ctx)return;
@@ -1495,7 +1508,7 @@ function drawPriceChart(priceHistory){
  const top5=Object.entries(priceHistory).sort((a,b)=>b[1].length-a[1].length).slice(0,5);
  const datasets=top5.map(([name,hist],i)=>{
   const sorted=hist.sort((a,b)=>a.date-b.date);
-  return{label:name,data:sorted.map(h=>({x:h.date.toLocaleDateString("fr-FR"),y:h.price})),borderColor:["#245c49","#397b64","#52a07d","#6bb896","#85d0af"][i],fill:false,tension:0.3};
+  return{label:name,data:sorted.map(h=>({x:h.date.toLocaleDateString("fr-FR"),y:h.price})),borderColor:CHART_CATEGORICAL[i]||"#898781",fill:false,tension:0.3};
  });
  chartInstances.prices=new Chart(ctx,{
   type:"line",
@@ -1517,38 +1530,38 @@ function generateAlerts(){
  allProducts.forEach(prodName=>{
   const stats=calculateProductStats(prodName,from,to);
   if(stats&&stats.priceChange>0.1){
-   alerts.push({type:"price-up",severity:"warn",product:prodName,change:stats.priceChange,oldPrice:stats.minPrice,newPrice:stats.maxPrice});
+   alerts.push({id:"price-up:"+prodName,type:"price-up",severity:"warn",product:prodName,change:stats.priceChange,oldPrice:stats.minPrice,newPrice:stats.maxPrice});
   }
  });
- 
+
  // 2. Missing usual products
  suppliers.forEach(sup=>{
   const missing=missingUsualProducts(sup.id);
   if(missing.length&&state.drafts.length){
-   alerts.push({type:"missing-product",severity:"info",supplier:sup.name,products:missing.slice(0,3)});
+   alerts.push({id:"missing-product:"+sup.id,type:"missing-product",severity:"info",supplier:sup.name,products:missing.slice(0,3)});
   }
  });
- 
+
  // 3. Minimum order not reached
  state.drafts.forEach(d=>{
   const status=minimumOrderStatus(d.supplierId);
   if(!status.reached){
-   alerts.push({type:"min-order",severity:"warn",supplier:supplier(d.supplierId).name,current:status.total,needed:status.diff});
+   alerts.push({id:"min-order:"+d.supplierId,type:"min-order",severity:"warn",supplier:supplier(d.supplierId).name,current:status.total,needed:status.diff});
   }
  });
- 
+
  // 4. Price at lowest point
  allProducts.forEach(prodName=>{
   const stats=calculateProductStats(prodName,from,to);
   if(stats&&stats.minPrice>0){
    const lastPrice=stats.priceHistory[stats.priceHistory.length-1]?.price;
    if(lastPrice&&lastPrice===stats.minPrice){
-    alerts.push({type:"price-low",severity:"success",product:prodName,price:stats.minPrice});
+    alerts.push({id:"price-low:"+prodName,type:"price-low",severity:"success",product:prodName,price:stats.minPrice});
    }
   }
  });
- 
- return alerts.sort((a,b)=>({success:3,info:2,"warn":1}[b.severity]-({success:3,info:2,"warn":1}[a.severity])));
+
+ return alerts.filter(a=>!state.dismissedAlerts[a.id]).sort((a,b)=>({success:3,info:2,"warn":1}[b.severity]-({success:3,info:2,"warn":1}[a.severity])));
 }
 function renderAlerts(){
  const alerts=generateAlerts();
@@ -1558,33 +1571,30 @@ function renderAlerts(){
   html+=`<div class="box" style="text-align:center;padding:20px;background:#f0fdf4"><p style="margin:0;color:#166534">✓ Aucune alerte</p></div>`;
  }else{
   alerts.forEach(a=>{
-   let box='';
+   let inner='';
    if(a.type==="price-up"){
-    box=`<div class="box" style="border-left:4px solid var(--warn);margin-bottom:10px">
-     <div style="font-weight:600;color:var(--warn)">📈 Prix en hausse : ${esc(a.product)}</div>
-     <div class="small">Augmentation : +${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div>
-    </div>`;
+    inner=`<div style="font-weight:600;color:var(--danger)">📈 Prix en hausse : ${esc(a.product)}</div>
+     <div class="small">Augmentation : +${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div>`;
    }else if(a.type==="missing-product"){
-    box=`<div class="box" style="border-left:4px solid #0066cc;margin-bottom:10px">
-     <div style="font-weight:600;color:#0066cc">🤔 Produit habituel manquant</div>
-     <div class="small">Chez ${esc(a.supplier)} : ${a.products.map(p=>esc(p.product.name)).join(", ")}</div>
-    </div>`;
+    inner=`<div style="font-weight:600;color:#0066cc">🤔 Produit habituel manquant</div>
+     <div class="small">Chez ${esc(a.supplier)} : ${a.products.map(p=>esc(p.product.name)).join(", ")}</div>`;
    }else if(a.type==="min-order"){
-    box=`<div class="box" style="border-left:4px solid var(--warn);margin-bottom:10px">
-     <div style="font-weight:600;color:var(--warn)">⚠️ Minimum non atteint</div>
-     <div class="small">${esc(a.supplier)} : ${a.current.toFixed(2)} € / ${a.needed.toFixed(2)} € manquants</div>
-    </div>`;
+    inner=`<div style="font-weight:600;color:var(--warn)">⚠️ Minimum non atteint</div>
+     <div class="small">${esc(a.supplier)} : ${a.current.toFixed(2)} € / ${a.needed.toFixed(2)} € manquants</div>`;
    }else if(a.type==="price-low"){
-    box=`<div class="box" style="border-left:4px solid var(--g);margin-bottom:10px">
-     <div style="font-weight:600;color:var(--g)">✨ Prix au plus bas</div>
-     <div class="small">${esc(a.product)} : ${a.price.toFixed(2)} € (meilleur prix du mois)</div>
-    </div>`;
+    inner=`<div style="font-weight:600;color:var(--g)">✨ Prix au plus bas</div>
+     <div class="small">${esc(a.product)} : ${a.price.toFixed(2)} € (meilleur prix du mois)</div>`;
    }
-   html+=box;
+   const border=a.type==="price-up"?"var(--danger)":a.type==="missing-product"?"#0066cc":a.type==="min-order"?"var(--warn)":"var(--g)";
+   html+=`<div class="box" style="border-left:4px solid ${border};margin-bottom:10px;display:flex;justify-content:space-between;align-items:start;gap:8px">
+    <div style="min-width:0">${inner}</div>
+    <button type="button" class="icobtn d" data-dismiss-alert="${esc(a.id)}" title="Supprimer l’alerte" style="flex:none">🗑</button>
+   </div>`;
   });
  }
- 
+
  $("alertsList").innerHTML=html;
+ document.querySelectorAll("[data-dismiss-alert]").forEach(b=>b.onclick=()=>{state.dismissedAlerts[b.dataset.dismissAlert]=true;save();renderAlerts()});
 }
 
 /* ============================================================
