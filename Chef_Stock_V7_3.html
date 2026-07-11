@@ -1157,7 +1157,7 @@ function getPurchasingPeriod(){
 function getOrdersInRange(from,to){
  return state.history.filter(h=>{
   const d=new Date(h.date);
-  return d>=from&&d<=to&&(h.status==="Envoyée"||h.status==="Reçue"||h.status==="Completada");
+  return d>=from&&d<=to&&(h.status==="Envoyée"||h.status==="Reçue"||h.status==="Réceptionnée"||h.status==="Completada");
  });
 }
 function daysDiffInPeriod(from,to){
