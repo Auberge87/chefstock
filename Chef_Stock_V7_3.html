@@ -1469,13 +1469,20 @@ function renderStatisticsWithCharts(){
   b.onclick=()=>{state.statRange=b.dataset.statRange;renderStatisticsWithCharts()}
  });
 }
+const CHART_CATEGORICAL=["#2a78d6","#1baf7a","#eda100","#008300","#4a3aa7","#e34948","#e87ba4","#eb6834"];
 function drawSupplierChart(bySupplier){
  const ctx=document.getElementById("chartSupplier");if(!ctx)return;
  if(chartInstances.supplier)chartInstances.supplier.destroy();
- const sorted=Object.entries(bySupplier).sort((a,b)=>b[1].total-a[1].total);
+ let sorted=Object.entries(bySupplier).sort((a,b)=>b[1].total-a[1].total);
+ if(sorted.length>CHART_CATEGORICAL.length){
+  const head=sorted.slice(0,CHART_CATEGORICAL.length-1);
+  const rest=sorted.slice(CHART_CATEGORICAL.length-1);
+  const autres=rest.reduce((s,e)=>s+e[1].total,0);
+  sorted=[...head,["Autres",{total:autres}]];
+ }
  chartInstances.supplier=new Chart(ctx,{
   type:"pie",
-  data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>e[1].total),backgroundColor:["#245c49","#397b64","#52a07d","#6bb896","#85d0af","#9ee8c8"]}]},
+  data:{labels:sorted.map(e=>e[0]),datasets:[{data:sorted.map(e=>e[1].total),backgroundColor:sorted.map((_,i)=>CHART_CATEGORICAL[i]||"#898781")}]},
   options:{responsive:true,plugins:{legend:{position:"bottom"}}}
  });
 }
