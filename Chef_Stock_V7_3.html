@@ -765,9 +765,10 @@ function renderProducts(){
     <div class="qtyline"><input class="qty" inputmode="decimal" enterkeyhint="next" data-q="${p.id}" value="${qty(p)||""}" placeholder="0"><select class="sel" data-unit="${p.id}">${unitOpts}</select></div></div>
     ${lineInfo}
     <div class="quickrow">${ql?ql.map(n=>`<button type="button" class="qbtn ${Number(qty(p))===Number(n)?"active":""}" data-quick="${p.id}" data-val="${n}">${esc(n)}</button>`).join(""):""}<button type="button" class="qedit" data-editprod="${p.id}">✏️ Modifier</button></div>
+    ${supList.length>1?`<select class="fullsel" data-pick="${p.id}">${supList.map(id=>`<option value="${id}" ${sid(p)===id?"selected":""}>${esc(supplier(id).icon)} ${esc(supplier(id).name)}</option>`).join("")}</select>`:""}
    </div>`;
   };
-  
+
   let catHtml=headerHtml;
   
   // Favorites section
@@ -813,11 +814,12 @@ function renderProducts(){
     ${supList.length>1?`<select class="fullsel" data-pick="${p.id}">${supList.map(id=>`<option value="${id}" ${sid(p)===id?"selected":""}>${esc(supplier(id).icon)} ${esc(supplier(id).name)}</option>`).join("")}</select>`:""}
    </div>`}).join("")||'<div class="box">Aucun produit trouvé.</div>';
  }
+ const pinSupplierIfBrowsing=id=>{if(state.browseMode==="supplier"&&state.supplierFilter)state.supplier[id]=state.supplierFilter};
  const inputs=[...document.querySelectorAll("[data-q]")];
- inputs.forEach((el,i)=>{el.onfocus=()=>el.select();el.oninput=()=>{state.q[el.dataset.q]=el.value;save();syncBottom();renderProducts()};el.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();(inputs[i+1]||inputs[0])&&(inputs[i+1]||inputs[0]).focus()}}});
+ inputs.forEach((el,i)=>{el.onfocus=()=>el.select();el.oninput=()=>{state.q[el.dataset.q]=el.value;pinSupplierIfBrowsing(el.dataset.q);save();syncBottom();renderProducts()};el.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();(inputs[i+1]||inputs[0])&&(inputs[i+1]||inputs[0]).focus()}}});
  document.querySelectorAll("[data-unit]").forEach(el=>el.onchange=()=>{const id=el.dataset.unit;if(el.value==="__new"){const nm=prompt("Nom de la nouvelle unité / conditionnement :","");if(!nm||!nm.trim()){renderProducts();return}const u=rememberUnit(nm.trim());updateCfgProduct(id,{unit:u})}else{updateCfgProduct(id,{unit:el.value})}renderProducts()});
  document.querySelectorAll("[data-pick]").forEach(el=>el.onchange=()=>{state.supplier[el.dataset.pick]=el.value;save()});
- document.querySelectorAll("[data-quick]").forEach(b=>b.onclick=()=>{const id=b.dataset.quick,val=b.dataset.val;state.q[id]=val;save();const inp=document.querySelector(`[data-q="${id}"]`);if(inp)inp.value=val;b.parentElement.querySelectorAll(".qbtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");syncBottom();renderProducts()});
+ document.querySelectorAll("[data-quick]").forEach(b=>b.onclick=()=>{const id=b.dataset.quick,val=b.dataset.val;state.q[id]=val;pinSupplierIfBrowsing(id);save();const inp=document.querySelector(`[data-q="${id}"]`);if(inp)inp.value=val;b.parentElement.querySelectorAll(".qbtn").forEach(x=>x.classList.remove("active"));b.classList.add("active");syncBottom();renderProducts()});
  document.querySelectorAll("[data-editprod]").forEach(b=>b.onclick=()=>openProductModal(b.dataset.editprod));
  syncBottom();
 }
