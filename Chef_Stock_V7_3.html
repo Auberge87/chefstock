@@ -649,13 +649,13 @@ function renderHome(){buildDrafts();const toSend=state.drafts;const open=state.h
   const hints=[];
   suppliers.forEach(sup=>{const missing=missingUsualProducts(sup.id);if(missing.length){hints.push(`Vous commandez habituellement ${esc(missing[0].product.name)} chez ${esc(sup.name)}. Avez-vous l'oubliée ?`)}});
   const hintTxt=hints.length?hints[0]:"Aucune commande à envoyer ni livraison attendue aujourd'hui.";
-  const priceUpAlerts=generateAlerts().filter(a=>a.type==="price-up");
+  const priceAlerts=generateAlerts().filter(a=>a.type==="price-up"||a.type==="price-down");
   html+=`<div class="box" style="text-align:center;padding:24px;background:linear-gradient(135deg,rgba(36,92,73,0.05),rgba(36,92,73,0.02));border:1px dashed var(--line)"><h3 style="margin:0 0 6px;color:var(--g);font-size:18px">✓ Vous êtes à jour</h3><p style="margin:0;color:var(--muted);font-size:14px">${esc(hintTxt)}</p>
-  ${priceUpAlerts.length?`<div style="margin-top:16px;text-align:left">`+priceUpAlerts.map(a=>`<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-top:8px">
-    ${priceArrow("up")}
-    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;color:${PRICE_UP_COLOR}">${esc(a.product)}</div><div class="small">+${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div></div>
+  ${priceAlerts.length?`<div style="margin-top:16px;text-align:left">`+priceAlerts.map(a=>{const up=a.type==="price-up";const color=up?PRICE_UP_COLOR:PRICE_DOWN_COLOR;return `<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-top:8px">
+    ${priceArrow(up?"up":"down")}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;color:${color}">${esc(a.product)} <span>(${pricePct(a)}%)</span></div><div class="small">${up?"+":""}${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div></div>
     <button type="button" class="icobtn d" data-dismiss-alert="${esc(a.id)}" title="Supprimer l’alerte" style="flex:none">🗑</button>
-   </div>`).join("")+`</div>`:""}
+   </div>`}).join("")+`</div>`:""}
   </div>`;
  }
  
@@ -1579,6 +1579,7 @@ function priceArrow(direction){
   ?`<span style="color:${PRICE_UP_COLOR};font-weight:900;font-size:18px;line-height:1">↗</span>`
   :`<span style="color:${PRICE_DOWN_COLOR};font-weight:900;font-size:18px;line-height:1">↘</span>`;
 }
+function pricePct(a){if(!a.oldPrice)return "0.0";const pct=(a.change/a.oldPrice)*100;return (pct>0?"+":"")+pct.toFixed(1)}
 function renderAlerts(){
  const alerts=generateAlerts();
  let html=`<div style="margin-bottom:14px">Alertes actives : ${alerts.length}</div>`;
@@ -1589,10 +1590,10 @@ function renderAlerts(){
   alerts.forEach(a=>{
    let inner='';
    if(a.type==="price-up"){
-    inner=`<div style="font-weight:600;color:${PRICE_UP_COLOR};display:flex;align-items:center;gap:6px">${priceArrow("up")} Prix en hausse : ${esc(a.product)}</div>
+    inner=`<div style="font-weight:600;color:${PRICE_UP_COLOR};display:flex;align-items:center;gap:6px">${priceArrow("up")} Prix en hausse : ${esc(a.product)} <span style="font-weight:700">(${pricePct(a)}%)</span></div>
      <div class="small">Augmentation : +${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div>`;
    }else if(a.type==="price-down"){
-    inner=`<div style="font-weight:600;color:${PRICE_DOWN_COLOR};display:flex;align-items:center;gap:6px">${priceArrow("down")} Prix en baisse : ${esc(a.product)}</div>
+    inner=`<div style="font-weight:600;color:${PRICE_DOWN_COLOR};display:flex;align-items:center;gap:6px">${priceArrow("down")} Prix en baisse : ${esc(a.product)} <span style="font-weight:700">(${pricePct(a)}%)</span></div>
      <div class="small">Baisse : ${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div>`;
    }else if(a.type==="missing-product"){
     inner=`<div style="font-weight:600;color:#0066cc">🤔 Produit habituel manquant</div>
