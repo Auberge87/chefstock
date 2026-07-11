@@ -123,6 +123,7 @@ main{max-width:1050px;margin:auto;padding:14px 14px 118px}
 <section id="manage" class="screen">
  <div class="top"><button class="btn secondary sm" data-home>← Accueil</button><h2>Gérer les produits</h2><button class="btn primary sm" id="addProductBtn">＋ Nouveau</button></div>
  <div class="segmented" id="manageSortToggle"><button data-sort="name">Par nom</button><button data-sort="supplier">Par fournisseur</button></div>
+ <div id="manageTabs" class="tabs"></div>
  <div class="toolbar"><input id="manageSearch" class="search" placeholder="Rechercher…"><button class="btn secondary" id="findDupBtn">🔎 Doublons</button></div>
  <div id="manageList" class="list"></div>
 </section>
@@ -284,7 +285,7 @@ function findMaybeDuplicate(cand,excludeId){return bestMatch(cand,SIM_MAYBE,excl
 /* ---------- storage ---------- */
 let config=JSON.parse(localStorage.getItem(CFG_KEY)||"null");
 const saved=JSON.parse(localStorage.getItem(RUN_KEY)||"{}");
-const state={q:saved.q||{},supplier:saved.supplier||{},history:saved.history||[],quickOverrides:saved.quickOverrides||{},deleted:saved.deleted||{},savedDrafts:saved.savedDrafts||[],browseMode:saved.browseMode||"supplier",productHistory:saved.productHistory||{},expandedCategories:{},inventory:saved.inventory||{},mode:"tomorrow",date:"",selectedOnly:false,cat:"Tous",drafts:[],supplierFilter:"",previewIndex:0,editId:null,statRange:"month",manageSort:"name"};
+const state={q:saved.q||{},supplier:saved.supplier||{},history:saved.history||[],quickOverrides:saved.quickOverrides||{},deleted:saved.deleted||{},savedDrafts:saved.savedDrafts||[],browseMode:saved.browseMode||"supplier",productHistory:saved.productHistory||{},expandedCategories:{},inventory:saved.inventory||{},mode:"tomorrow",date:"",selectedOnly:false,cat:"Tous",drafts:[],supplierFilter:"",previewIndex:0,editId:null,statRange:"month",manageSort:"name",manageSupplierFilter:""};
 function save(){localStorage.setItem(RUN_KEY,JSON.stringify({q:state.q,supplier:state.supplier,history:state.history,quickOverrides:state.quickOverrides,deleted:state.deleted,savedDrafts:state.savedDrafts,browseMode:state.browseMode,productHistory:state.productHistory||{},inventory:state.inventory||{},v72bm:true}))}
 if(!saved.v72bm){state.browseMode="supplier";save();}
 function saveCfg(){localStorage.setItem(CFG_KEY,JSON.stringify(config))}
@@ -836,9 +837,18 @@ function renderManage(){const term=($("manageSearch").value||"").toLowerCase();
  if(state.manageSort==="supplier"){
   const groups=suppliers.map(s=>({s,prods:list.filter(p=>prodSuppliers(p).includes(s.id))})).filter(g=>g.prods.length);
   const none=list.filter(p=>!prodSuppliers(p).length);
-  if(none.length)groups.push({s:{icon:"❔",name:"Sans fournisseur"},prods:none});
-  $("manageList").innerHTML=groups.map(g=>`<div style="margin-bottom:14px"><h4 style="margin:0 0 8px;font-size:14px;font-weight:600;color:var(--g)">${esc(g.s.icon)} ${esc(g.s.name)} <span class="small" style="color:var(--muted);font-weight:400">(${g.prods.length})</span></h4><div class="list" style="gap:8px">${g.prods.map(row).join("")}</div></div>`).join("")||'<div class="box">Aucun produit. Touchez « ＋ Nouveau » pour en ajouter un.</div>';
+  if(none.length)groups.push({s:{id:"__none",icon:"❔",name:"Sans fournisseur"},prods:none});
+  const tabs=[{k:"",label:"Tous ("+list.length+")"}].concat(groups.map(g=>({k:g.s.id,label:g.s.icon+" "+g.s.name+" ("+g.prods.length+")"})));
+  $("manageTabs").innerHTML=tabs.map(t=>`<button class="tab ${state.manageSupplierFilter===t.k?"active":""}" data-msup="${esc(t.k)}">${esc(t.label)}</button>`).join("");
+  document.querySelectorAll("[data-msup]").forEach(b=>b.onclick=()=>{state.manageSupplierFilter=b.dataset.msup;renderManage()});
+  if(!state.manageSupplierFilter){
+   $("manageList").innerHTML=groups.map(g=>`<div style="margin-bottom:14px"><h4 style="margin:0 0 8px;font-size:14px;font-weight:600;color:var(--g)">${esc(g.s.icon)} ${esc(g.s.name)} <span class="small" style="color:var(--muted);font-weight:400">(${g.prods.length})</span></h4><div class="list" style="gap:8px">${g.prods.map(row).join("")}</div></div>`).join("")||'<div class="box">Aucun produit. Touchez « ＋ Nouveau » pour en ajouter un.</div>';
+  }else{
+   const g=groups.find(x=>x.s.id===state.manageSupplierFilter);
+   $("manageList").innerHTML=(g?g.prods.map(row).join(""):"")||'<div class="box">Aucun produit pour ce fournisseur.</div>';
+  }
  }else{
+  $("manageTabs").innerHTML="";
   $("manageList").innerHTML=list.map(row).join("")||'<div class="box">Aucun produit. Touchez « ＋ Nouveau » pour en ajouter un.</div>';
  }
  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>openProductModal(b.dataset.edit));
