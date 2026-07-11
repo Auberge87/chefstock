@@ -649,7 +649,14 @@ function renderHome(){buildDrafts();const toSend=state.drafts;const open=state.h
   const hints=[];
   suppliers.forEach(sup=>{const missing=missingUsualProducts(sup.id);if(missing.length){hints.push(`Vous commandez habituellement ${esc(missing[0].product.name)} chez ${esc(sup.name)}. Avez-vous l'oubliée ?`)}});
   const hintTxt=hints.length?hints[0]:"Aucune commande à envoyer ni livraison attendue aujourd'hui.";
-  html+=`<div class="box" style="text-align:center;padding:24px;background:linear-gradient(135deg,rgba(36,92,73,0.05),rgba(36,92,73,0.02));border:1px dashed var(--line)"><h3 style="margin:0 0 6px;color:var(--g);font-size:18px">✓ Vous êtes à jour</h3><p style="margin:0;color:var(--muted);font-size:14px">${esc(hintTxt)}</p></div>`;
+  const priceUpAlerts=generateAlerts().filter(a=>a.type==="price-up");
+  html+=`<div class="box" style="text-align:center;padding:24px;background:linear-gradient(135deg,rgba(36,92,73,0.05),rgba(36,92,73,0.02));border:1px dashed var(--line)"><h3 style="margin:0 0 6px;color:var(--g);font-size:18px">✓ Vous êtes à jour</h3><p style="margin:0;color:var(--muted);font-size:14px">${esc(hintTxt)}</p>
+  ${priceUpAlerts.length?`<div style="margin-top:16px;text-align:left">`+priceUpAlerts.map(a=>`<div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-top:8px">
+    ${priceArrow("up")}
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13px;color:${PRICE_UP_COLOR}">${esc(a.product)}</div><div class="small">+${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div></div>
+    <button type="button" class="icobtn d" data-dismiss-alert="${esc(a.id)}" title="Supprimer l’alerte" style="flex:none">🗑</button>
+   </div>`).join("")+`</div>`:""}
+  </div>`;
  }
  
  html+=`<div style="margin:18px 0"><button class="btn primary" id="homeImport" style="width:100%;padding:16px;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px"><span class="material-icons">photo_camera</span>Importer une facture / bon</button></div>`;
@@ -672,6 +679,7 @@ function renderHome(){buildDrafts();const toSend=state.drafts;const open=state.h
  document.querySelectorAll("[data-send]").forEach(b=>b.onclick=e=>{e.preventDefault();openPreviewForSupplier(b.dataset.send)});
  document.querySelectorAll("[data-receive]").forEach(b=>b.onclick=()=>markReceived(b.dataset.receive));
  document.querySelectorAll("[data-control]").forEach(b=>b.onclick=e=>{e.preventDefault();openDeliveryFor(b.dataset.control)});
+ document.querySelectorAll("[data-dismiss-alert]").forEach(b=>b.onclick=()=>{state.dismissedAlerts[b.dataset.dismissAlert]=true;save();renderHome()});
 }
 
 function openDeliveryFor(id){openReception(id)}
@@ -1531,6 +1539,8 @@ function generateAlerts(){
   const stats=calculateProductStats(prodName,from,to);
   if(stats&&stats.priceChange>0.1){
    alerts.push({id:"price-up:"+prodName,type:"price-up",severity:"warn",product:prodName,change:stats.priceChange,oldPrice:stats.minPrice,newPrice:stats.maxPrice});
+  }else if(stats&&stats.priceChange<-0.1){
+   alerts.push({id:"price-down:"+prodName,type:"price-down",severity:"info",product:prodName,change:stats.priceChange,oldPrice:stats.maxPrice,newPrice:stats.minPrice});
   }
  });
 
@@ -1563,18 +1573,27 @@ function generateAlerts(){
 
  return alerts.filter(a=>!state.dismissedAlerts[a.id]).sort((a,b)=>({success:3,info:2,"warn":1}[b.severity]-({success:3,info:2,"warn":1}[a.severity])));
 }
+const PRICE_UP_COLOR="#ff3b30",PRICE_DOWN_COLOR="#1a73e8";
+function priceArrow(direction){
+ return direction==="up"
+  ?`<span style="color:${PRICE_UP_COLOR};font-weight:900;font-size:18px;line-height:1">↗</span>`
+  :`<span style="color:${PRICE_DOWN_COLOR};font-weight:900;font-size:18px;line-height:1">↘</span>`;
+}
 function renderAlerts(){
  const alerts=generateAlerts();
  let html=`<div style="margin-bottom:14px">Alertes actives : ${alerts.length}</div>`;
- 
+
  if(!alerts.length){
   html+=`<div class="box" style="text-align:center;padding:20px;background:#f0fdf4"><p style="margin:0;color:#166534">✓ Aucune alerte</p></div>`;
  }else{
   alerts.forEach(a=>{
    let inner='';
    if(a.type==="price-up"){
-    inner=`<div style="font-weight:600;color:var(--danger)">📈 Prix en hausse : ${esc(a.product)}</div>
+    inner=`<div style="font-weight:600;color:${PRICE_UP_COLOR};display:flex;align-items:center;gap:6px">${priceArrow("up")} Prix en hausse : ${esc(a.product)}</div>
      <div class="small">Augmentation : +${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div>`;
+   }else if(a.type==="price-down"){
+    inner=`<div style="font-weight:600;color:${PRICE_DOWN_COLOR};display:flex;align-items:center;gap:6px">${priceArrow("down")} Prix en baisse : ${esc(a.product)}</div>
+     <div class="small">Baisse : ${a.change.toFixed(2)} € (${a.oldPrice.toFixed(2)} € → ${a.newPrice.toFixed(2)} €)</div>`;
    }else if(a.type==="missing-product"){
     inner=`<div style="font-weight:600;color:#0066cc">🤔 Produit habituel manquant</div>
      <div class="small">Chez ${esc(a.supplier)} : ${a.products.map(p=>esc(p.product.name)).join(", ")}</div>`;
@@ -1585,7 +1604,7 @@ function renderAlerts(){
     inner=`<div style="font-weight:600;color:var(--g)">✨ Prix au plus bas</div>
      <div class="small">${esc(a.product)} : ${a.price.toFixed(2)} € (meilleur prix du mois)</div>`;
    }
-   const border=a.type==="price-up"?"var(--danger)":a.type==="missing-product"?"#0066cc":a.type==="min-order"?"var(--warn)":"var(--g)";
+   const border=a.type==="price-up"?PRICE_UP_COLOR:a.type==="price-down"?PRICE_DOWN_COLOR:a.type==="missing-product"?"#0066cc":a.type==="min-order"?"var(--warn)":"var(--g)";
    html+=`<div class="box" style="border-left:4px solid ${border};margin-bottom:10px;display:flex;justify-content:space-between;align-items:start;gap:8px">
     <div style="min-width:0">${inner}</div>
     <button type="button" class="icobtn d" data-dismiss-alert="${esc(a.id)}" title="Supprimer l’alerte" style="flex:none">🗑</button>
