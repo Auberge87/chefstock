@@ -635,7 +635,7 @@ function renderHome(){buildDrafts();const toSend=state.drafts;const open=state.h
   html+=`<div style="margin-bottom:14px"><div class="list" style="gap:8px">`;
   tasks.forEach(t=>{
    if(t.type==="send"){const d=t.data;const s=supplier(d.supplierId);const st=minimumOrderStatus(d.supplierId);html+=`<div class="order" style="background:linear-gradient(135deg, rgba(36,92,73,0.03), rgba(36,92,73,0.01));border-left:4px solid var(--g)"><div style="display:flex;justify-content:space-between;align-items:start;gap:8px;margin-bottom:6px"><div><h3 style="margin:0;font-size:15px">Envoyer commande ${esc(s.name)}</h3><div class="small">${d.items.length} article(s) · ≈${st.total.toFixed(2)}€</div></div><button class="btn primary sm" style="white-space:nowrap" data-send="${esc(d.supplierId)}"><span class="material-icons" style="font-size:16px;vertical-align:middle;margin-right:2px">send</span> Envoyer</button></div></div>`}
-   else if(t.type==="receive"){const x=t.data;const h=x.h;const s=supplier(h.supplierId);html+=`<div class="order" style="background:linear-gradient(135deg, rgba(166,62,62,0.03), rgba(166,62,62,0.01));border-left:4px solid var(--danger)"><div style="display:flex;justify-content:space-between;align-items:start;gap:8px"><div><h3 style="margin:0;font-size:15px">Réceptionner livraison ${esc(s.name)}</h3><div class="small">${h.items.length} article(s)</div></div><button class="btn secondary sm" style="white-space:nowrap" data-control="${esc(h.id)}"><span class="material-icons" style="font-size:16px;vertical-align:middle;margin-right:2px">photo_camera</span> Réceptionner</button></div></div>`}
+   else if(t.type==="receive"){const x=t.data;const h=x.h;const s=supplier(h.supplierId);html+=`<div class="order" style="background:linear-gradient(135deg, rgba(166,62,62,0.03), rgba(166,62,62,0.01));border-left:4px solid var(--danger)"><div style="display:flex;justify-content:space-between;align-items:start;gap:8px"><div><h3 style="margin:0;font-size:15px">Réceptionner livraison ${esc(s.name)}</h3><div class="small">${h.items.length} article(s)</div></div><div style="display:flex;gap:6px"><button class="btn secondary sm" style="white-space:nowrap" data-control="${esc(h.id)}"><span class="material-icons" style="font-size:16px;vertical-align:middle;margin-right:2px">photo_camera</span> Réceptionner</button><button type="button" class="icobtn d" data-del-order="${esc(h.id)}" title="Supprimer cette commande (erreur)">🗑</button></div></div></div>`}
   });
   html+=`</div></div>`;
   
@@ -679,6 +679,7 @@ function renderHome(){buildDrafts();const toSend=state.drafts;const open=state.h
  document.querySelectorAll("[data-send]").forEach(b=>b.onclick=e=>{e.preventDefault();openPreviewForSupplier(b.dataset.send)});
  document.querySelectorAll("[data-receive]").forEach(b=>b.onclick=()=>markReceived(b.dataset.receive));
  document.querySelectorAll("[data-control]").forEach(b=>b.onclick=e=>{e.preventDefault();openDeliveryFor(b.dataset.control)});
+ document.querySelectorAll("[data-del-order]").forEach(b=>b.onclick=()=>deleteHistoryOrder(b.dataset.delOrder));
  document.querySelectorAll("[data-dismiss-alert]").forEach(b=>b.onclick=()=>{state.dismissedAlerts[b.dataset.dismissAlert]=true;save();renderHome()});
 }
 
@@ -1012,7 +1013,7 @@ function renderReception(){
   });
   html+=`</div></div></div>`;
  }
- html+=`<div class="box"><div class="field"><label>Commande reçue</label><div class="rowline" style="gap:10px;align-items:stretch">${sent.length?sent.map(h=>{const sup=supplier(h.supplierId);const active=recep.orderId===h.id;return `<button type="button" class="btn secondary" data-recep-order="${esc(h.id)}" title="${esc(orderLabel(h))}" style="position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 14px;border-radius:16px;min-width:78px;${active?"border-color:var(--g);background:#eaf3ef":""}"><span style="font-size:26px;line-height:1">${esc(sup.icon)}</span><span style="font-weight:600;font-size:13px;margin-top:2px">${esc(sup.name)}</span><span class="small" style="font-size:11px">${new Date(h.date).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})} · ${esc(h.status||"Envoyée")}</span><span style="position:absolute;top:-6px;right:-6px;background:#fff;border:1px solid var(--line);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px">📷</span></button>`}).join(""):'<div class="small">Aucune commande en attente de réception 🎉</div>'}</div></div>
+ html+=`<div class="box"><div class="field"><label>Commande reçue</label><div class="rowline" style="gap:10px;align-items:stretch">${sent.length?sent.map(h=>{const sup=supplier(h.supplierId);const active=recep.orderId===h.id;return `<div style="position:relative"><button type="button" class="btn secondary" data-recep-order="${esc(h.id)}" title="${esc(orderLabel(h))}" style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 14px;border-radius:16px;min-width:78px;${active?"border-color:var(--g);background:#eaf3ef":""}"><span style="font-size:26px;line-height:1">${esc(sup.icon)}</span><span style="font-weight:600;font-size:13px;margin-top:2px">${esc(sup.name)}</span><span class="small" style="font-size:11px">${new Date(h.date).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})} · ${esc(h.status||"Envoyée")}</span></button><span style="position:absolute;top:-6px;right:-6px;background:#fff;border:1px solid var(--line);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;pointer-events:none">📷</span><button type="button" data-del-order="${esc(h.id)}" title="Supprimer cette commande" style="position:absolute;top:-6px;left:-6px;background:#fdf2f2;border:1px solid #f0d3d3;color:var(--danger);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;padding:0">✕</button></div>`}).join(""):'<div class="small">Aucune commande en attente de réception 🎉</div>'}</div></div>
   <div class="field"><label>Bon de livraison / facture</label>
    <div class="dropzone"><div class="big">📄</div><div class="small" style="margin-top:2px">Une ou plusieurs pages</div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><label for="recepPhotos_cam">📷 Prendre une photo</label><label for="recepPhotos_up" class="upload">📁 Choisir un fichier</label><button type="button" class="webcam" id="recep_webcam">📹 Webcam</button></div>
@@ -1027,6 +1028,7 @@ function renderReception(){
  else if(!order&&(recep.note||recep.manual))html+=`<div class="notice">Aucune commande sélectionnée à comparer. Choisissez une commande ci-dessus, ou ajoutez les nouveaux produits détectés.</div>`+((recep.note)?renderNewOnly():"");
  $("recepBody").innerHTML=html;
  document.querySelectorAll("[data-recep-order]").forEach(b=>b.onclick=()=>{recep.orderId=b.dataset.recepOrder;recep.deliv={};renderReception()});
+ document.querySelectorAll("[data-del-order]").forEach(b=>b.onclick=()=>deleteHistoryOrder(b.dataset.delOrder));
  const recepPhoto=e=>{const files=[...e.target.files];e.target.value="";if(!files.length)return;if(recep.note)recep.images=[];recep.note=null;recep.manual=false;recep.deliv={};recep.loading=true;renderReception();let left=files.length;files.forEach(f=>{const r=new FileReader();r.onload=()=>{recep.images.push({data:String(r.result).split(",")[1],mediaType:f.type||"image/jpeg"});if(--left===0){recep.loading=false;renderReception()}};r.onerror=()=>{if(--left===0){recep.loading=false;renderReception()}};r.readAsDataURL(f)})};["recepPhotos_cam","recepPhotos_up"].forEach(id=>{const el=$(id);if(el)el.onchange=recepPhoto});const rwc=$("recep_webcam");if(rwc)rwc.onclick=()=>openWebcam("recep");
  document.querySelectorAll("[data-rimgdel]").forEach(b=>b.onclick=()=>{recep.images.splice(Number(b.dataset.rimgdel),1);renderReception()});
  const an=$("recepAnalyze");if(an)an.onclick=runReceptionAnalyze;
@@ -1110,7 +1112,20 @@ function validateReception(){
  order.items=order.items.map(it=>{const k=norm(it.name);const d=(recep.deliv&&recep.deliv[k]!=null)?Number(recep.deliv[k]):Number(it.qty);return {...it,delivered:isNaN(d)?Number(it.qty):d}});
  order.status="Réceptionnée";order.receivedAt=new Date().toISOString();save();recep=null;toast("Livraison réceptionnée ✓");home();
 }
-function renderHistory(){if(!state.history.length){$("historylist").innerHTML='<div class="box">Aucune commande enregistrée.</div>';return}$("historylist").innerHTML=state.history.map(h=>{let s=supplier(h.supplierId);return `<div class="order"><h3>${esc(s.icon)} ${esc(s.name)}</h3><div class="small">${new Date(h.date).toLocaleString("fr-FR")} · ${esc(h.delivery||"")}</div><span class="pill">${esc(h.status||"Enregistrée")}</span><div class="ordertext">${h.items.map(i=>`${esc(i.name)}${i.packaging?" ("+esc(i.packaging)+")":""} : ${esc(i.qty)} ${esc(i.unit)}${i.delivered!=null&&Number(i.delivered)!==Number(i.qty)?"  →  livré "+esc(i.delivered):""}`).join("\n")}</div></div>`}).join("")}
+function deleteHistoryOrder(id){
+ const h=state.history.find(x=>x.id===id);if(!h)return;
+ const s=supplier(h.supplierId);
+ if(!confirm(`Supprimer définitivement la commande ${s.name} du ${new Date(h.date).toLocaleDateString("fr-FR")} ? Cette action est irréversible.`))return;
+ state.history=state.history.filter(x=>x.id!==id);save();
+ if(recep&&recep.orderId===id)recep=newRecep();
+ toast("Commande supprimée");
+ if($("history").classList.contains("active"))renderHistory();
+ else if($("delivery").classList.contains("active"))renderReception();
+ else if($("home").classList.contains("active"))renderHome();
+}
+function renderHistory(){if(!state.history.length){$("historylist").innerHTML='<div class="box">Aucune commande enregistrée.</div>';return}$("historylist").innerHTML=state.history.map(h=>{let s=supplier(h.supplierId);return `<div class="order"><div style="display:flex;justify-content:space-between;align-items:start;gap:8px"><h3 style="margin:0">${esc(s.icon)} ${esc(s.name)}</h3><button type="button" class="icobtn d" data-del-order="${esc(h.id)}" title="Supprimer la commande">🗑</button></div><div class="small">${new Date(h.date).toLocaleString("fr-FR")} · ${esc(h.delivery||"")}</div><span class="pill">${esc(h.status||"Enregistrée")}</span><div class="ordertext">${h.items.map(i=>`${esc(i.name)}${i.packaging?" ("+esc(i.packaging)+")":""} : ${esc(i.qty)} ${esc(i.unit)}${i.delivered!=null&&Number(i.delivered)!==Number(i.qty)?"  →  livré "+esc(i.delivered):""}`).join("\n")}</div></div>`}).join("");
+ document.querySelectorAll("[data-del-order]").forEach(b=>b.onclick=()=>deleteHistoryOrder(b.dataset.delOrder));
+}
 
 /* ============================================================
    SUPPLIERS MANAGEMENT
