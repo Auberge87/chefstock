@@ -9,6 +9,7 @@ import { Layout } from './app/Layout'
 import { Home } from './app/Home'
 import { ComingSoon } from './app/ComingSoon'
 import { SuppliersPage } from './features/suppliers/SuppliersPage'
+import { ProductsManagePage } from './features/products/ProductsManagePage'
 
 function App() {
   return (
@@ -22,7 +23,7 @@ function App() {
               <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/products" element={<ComingSoon title="Préparer une commande" />} />
-                <Route path="/manage" element={<ComingSoon title="Gérer les produits" />} />
+                <Route path="/manage" element={<ProductsManagePage />} />
                 <Route path="/orders" element={<ComingSoon title="Commandes préparées" />} />
                 <Route path="/history" element={<ComingSoon title="Historique" />} />
                 <Route path="/delivery" element={<ComingSoon title="Réceptionner une livraison" />} />
