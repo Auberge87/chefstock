@@ -41,6 +41,24 @@ export function OrderingPage() {
     return all?.find((s) => s.id === id)
   }
 
+  const activeSupplier = supplierFilter ? suppliers?.find((s) => s.id === supplierFilter) : undefined
+
+  const minOrderStatus = useMemo(() => {
+    if (!activeSupplier || !products) return null
+    const total = Object.entries(quantities).reduce((sum, [productId, qty]) => {
+      if (qty <= 0) return sum
+      const product = products.find((p) => p.id === productId)
+      if (!product) return sum
+      const supplierId = pickSupplierFor(product, supplierChoice)
+      if (supplierId !== activeSupplier.id) return sum
+      return sum + qty * unitPrice(product)
+    }, 0)
+    const min = activeSupplier.min_order_amount
+    const reached = min <= 0 || total >= min
+    const pct = min > 0 ? Math.min(100, (total / min) * 100) : 100
+    return { total, min, reached, pct, diff: Math.max(0, min - total) }
+  }, [activeSupplier, products, quantities, supplierChoice])
+
   return (
     <div>
       <div className="top">
@@ -91,6 +109,36 @@ export function OrderingPage() {
       )}
 
       {isLoading && <div className="small">Chargement…</div>}
+
+      {activeSupplier && minOrderStatus && (
+        <div className="box" style={{ marginBottom: 14, borderLeft: `4px solid ${minOrderStatus.reached ? 'var(--g)' : 'var(--danger)'}` }}>
+          <div style={{ marginBottom: 8 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: 16 }}>
+              {activeSupplier.icon} {activeSupplier.name}
+            </h3>
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <div className="small" style={{ fontWeight: 600, marginBottom: 4 }}>
+              {minOrderStatus.reached ? '🟢' : '🔴'} {minOrderStatus.total.toFixed(2)} € / {minOrderStatus.min} €
+            </div>
+            <div style={{ background: '#eef2ef', borderRadius: 12, height: 8, overflow: 'hidden' }}>
+              <div
+                style={{
+                  background: minOrderStatus.reached ? 'var(--g)' : 'var(--warn)',
+                  height: '100%',
+                  width: `${minOrderStatus.pct}%`,
+                  transition: 'width 0.3s ease',
+                }}
+              />
+            </div>
+          </div>
+          <div className="small" style={{ color: minOrderStatus.reached ? 'var(--g)' : 'var(--warn)' }}>
+            {minOrderStatus.reached
+              ? '✅ Minimum atteint'
+              : `Il manque environ ${minOrderStatus.diff.toFixed(2)} € pour atteindre le minimum.`}
+          </div>
+        </div>
+      )}
 
       <div className="list">
         {visible.map((p) => {

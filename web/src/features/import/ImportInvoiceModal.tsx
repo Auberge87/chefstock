@@ -13,6 +13,7 @@ interface ProductRow {
   category: string
   unit: string
   packaging: string
+  price: string
   duplicateOf: string | null
 }
 
@@ -74,6 +75,7 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
             category: p.category || 'Divers',
             unit: p.unit || 'pièce',
             packaging: p.packaging || '',
+            price: p.unitPrice != null ? String(p.unitPrice) : '',
             duplicateOf: isDup ? bestMatch!.existing.name : null,
           }
         }),
@@ -123,7 +125,7 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
           unit: row.unit,
           packaging: row.packaging || null,
           quick_quantities: [],
-          estimated_price: 0,
+          estimated_price: Number(row.price) || 0,
           price_basis: 'unit',
           unit_weight_kg: 0,
           pieces_per_unit: 0,
@@ -244,7 +246,19 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
                       <input value={row.category} onChange={(e) => updateRow(i, { category: e.target.value })} placeholder="Catégorie" />
                       <input value={row.unit} onChange={(e) => updateRow(i, { unit: e.target.value })} placeholder="Unité" />
                       <input value={row.packaging} onChange={(e) => updateRow(i, { packaging: e.target.value })} placeholder="Conditionnement" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={row.price}
+                        onChange={(e) => updateRow(i, { price: e.target.value })}
+                        placeholder="Prix €"
+                      />
                     </div>
+                    {!row.price && (
+                      <div className="small" style={{ color: 'var(--muted)' }}>
+                        Prix non lu sur la photo — à compléter manuellement si besoin.
+                      </div>
+                    )}
                   </div>
                 ))}
                 {!rows.length && <div className="small">Aucun produit détecté sur cette photo.</div>}

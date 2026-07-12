@@ -39,7 +39,8 @@ function buildPrompt(categories: string[], units: string[]) {
   return `Tu analyses la photo d'une facture, d'un bon de livraison ou d'une commande d'un fournisseur alimentaire, pour un restaurant.
 Identifie le FOURNISSEUR et extrais chaque LIGNE DE PRODUIT. Ignore en-têtes non pertinents, adresses, totaux, TVA.
 Réponds STRICTEMENT en JSON sans texte ni balises :
-{"supplierName":"nom du fournisseur ou null","products":[{"name":"nom court et propre en français","packaging":"conditionnement lu (ex. \\"Colis 5 kg\\") ou \\"\\"","unit":"unité de commande parmi (${units.join(', ')})","quantity": nombre ou 0,"category":"parmi (${categories.join(', ')})"}]}
+{"supplierName":"nom du fournisseur ou null","products":[{"name":"nom court et propre en français","packaging":"conditionnement lu (ex. \\"Colis 5 kg\\") ou \\"\\"","unit":"unité de commande parmi (${units.join(', ')})","quantity": nombre ou 0,"unitPrice": prix unitaire HT (par unité de commande) en euros, nombre ou null si illisible,"category":"parmi (${categories.join(', ')})"}]}
+Pour le prix : si seul un total de ligne est visible, calcule unitPrice = total ÷ quantity. N'invente jamais un prix non présent sur le document (mets null).
 Nettoie les noms (ex. "TOMATE GRAPPE COLIS 5KG" -> name:"Tomates grappe", packaging:"Colis 5 kg", unit:"colis"). N'invente rien.`
 }
 

@@ -5,6 +5,7 @@ export interface ScannedProduct {
   packaging?: string
   unit?: string
   quantity?: number
+  unitPrice?: number | null
   category?: string
 }
 
