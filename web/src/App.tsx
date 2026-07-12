@@ -14,6 +14,11 @@ import { OnboardingPage } from './features/onboarding/OnboardingPage'
 import { CartProvider } from './features/cart/CartContext'
 import { OrderingPage } from './features/cart/OrderingPage'
 import { CommandesPage } from './features/orders/CommandesPage'
+import { HistoriquePage } from './features/orders/HistoriquePage'
+import { SettingsPage } from './features/settings/SettingsPage'
+import { InventoryPage } from './features/inventory/InventoryPage'
+import { AlertsPage } from './features/alerts/AlertsPage'
+import { AnalyticsPage } from './features/analytics/AnalyticsPage'
 
 function App() {
   return (
@@ -30,13 +35,13 @@ function App() {
                   <Route path="/products" element={<OrderingPage />} />
                   <Route path="/manage" element={<ProductsManagePage />} />
                   <Route path="/orders" element={<CommandesPage />} />
-                  <Route path="/history" element={<ComingSoon title="Historique" />} />
+                  <Route path="/history" element={<HistoriquePage />} />
                   <Route path="/delivery" element={<ComingSoon title="Réceptionner une livraison" />} />
                   <Route path="/suppliers" element={<SuppliersPage />} />
-                  <Route path="/analytics" element={<ComingSoon title="Analyses" />} />
-                  <Route path="/alerts" element={<ComingSoon title="Alertes" />} />
-                  <Route path="/inventory" element={<ComingSoon title="Stocks" />} />
-                  <Route path="/settings" element={<ComingSoon title="Réglages" />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/alerts" element={<AlertsPage />} />
+                  <Route path="/inventory" element={<InventoryPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/onboarding" element={<OnboardingPage />} />
                 </Route>
               </Route>
