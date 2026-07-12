@@ -101,7 +101,7 @@ export interface OrderItem {
   unit: string | null
   packaging: string | null
   price: number | null
-  delivered: boolean
+  delivered_qty: number | null
 }
 
 export interface SavedDraft {

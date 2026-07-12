@@ -7,7 +7,6 @@ import { SignUp } from './features/auth/SignUp'
 import { ProtectedRoute } from './app/ProtectedRoute'
 import { Layout } from './app/Layout'
 import { Home } from './app/Home'
-import { ComingSoon } from './app/ComingSoon'
 import { SuppliersPage } from './features/suppliers/SuppliersPage'
 import { ProductsManagePage } from './features/products/ProductsManagePage'
 import { OnboardingPage } from './features/onboarding/OnboardingPage'
@@ -19,6 +18,7 @@ import { SettingsPage } from './features/settings/SettingsPage'
 import { InventoryPage } from './features/inventory/InventoryPage'
 import { AlertsPage } from './features/alerts/AlertsPage'
 import { AnalyticsPage } from './features/analytics/AnalyticsPage'
+import { ReceptionPage } from './features/delivery/ReceptionPage'
 
 function App() {
   return (
@@ -36,7 +36,7 @@ function App() {
                   <Route path="/manage" element={<ProductsManagePage />} />
                   <Route path="/orders" element={<CommandesPage />} />
                   <Route path="/history" element={<HistoriquePage />} />
-                  <Route path="/delivery" element={<ComingSoon title="Réceptionner une livraison" />} />
+                  <Route path="/delivery" element={<ReceptionPage />} />
                   <Route path="/suppliers" element={<SuppliersPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
