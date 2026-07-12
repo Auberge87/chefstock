@@ -27,6 +27,11 @@ export function Home() {
           {!isLoading && !error && 'Bienvenue sur la nouvelle version de Chef Stock.'}
         </p>
       </div>
+      {org?.name === 'Nouveau restaurant' && (
+        <div className="notice">
+          Configurez votre restaurant pour commencer. <Link to="/onboarding">Configurer maintenant →</Link>
+        </div>
+      )}
       <div className="grid">
         {QUICK_LINKS.map((l) => (
           <Link key={l.to} to={l.to} className="card" style={{ textDecoration: 'none', textAlign: 'center' }}>

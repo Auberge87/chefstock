@@ -10,6 +10,7 @@ import { Home } from './app/Home'
 import { ComingSoon } from './app/ComingSoon'
 import { SuppliersPage } from './features/suppliers/SuppliersPage'
 import { ProductsManagePage } from './features/products/ProductsManagePage'
+import { OnboardingPage } from './features/onboarding/OnboardingPage'
 
 function App() {
   return (
@@ -32,7 +33,7 @@ function App() {
                 <Route path="/alerts" element={<ComingSoon title="Alertes" />} />
                 <Route path="/inventory" element={<ComingSoon title="Stocks" />} />
                 <Route path="/settings" element={<ComingSoon title="Réglages" />} />
-                <Route path="/onboarding" element={<ComingSoon title="Configuration" />} />
+                <Route path="/onboarding" element={<OnboardingPage />} />
               </Route>
             </Route>
           </Routes>
