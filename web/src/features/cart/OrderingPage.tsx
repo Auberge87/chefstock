@@ -1,18 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useProducts, type ProductWithSuppliers } from '../products/useProducts'
+import { useProducts } from '../products/useProducts'
 import { useSuppliers } from '../suppliers/useSuppliers'
 import { useCart } from './CartContext'
+import { pickSupplierFor } from './pickSupplier'
 import { unitPrice, pricePerKg, pricePerPiece } from '../../lib/pricing'
 import type { Supplier } from '../../types/database'
 
 type BrowseMode = 'category' | 'supplier'
-
-function pickSupplierFor(p: ProductWithSuppliers, choice: Record<string, string>): string | undefined {
-  const chosen = choice[p.id]
-  if (chosen && p.supplierIds.includes(chosen)) return chosen
-  return p.supplierIds[0]
-}
 
 export function OrderingPage() {
   const { data: products, isLoading } = useProducts()

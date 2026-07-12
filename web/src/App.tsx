@@ -13,6 +13,7 @@ import { ProductsManagePage } from './features/products/ProductsManagePage'
 import { OnboardingPage } from './features/onboarding/OnboardingPage'
 import { CartProvider } from './features/cart/CartContext'
 import { OrderingPage } from './features/cart/OrderingPage'
+import { CommandesPage } from './features/orders/CommandesPage'
 
 function App() {
   return (
@@ -28,7 +29,7 @@ function App() {
                   <Route path="/" element={<Home />} />
                   <Route path="/products" element={<OrderingPage />} />
                   <Route path="/manage" element={<ProductsManagePage />} />
-                  <Route path="/orders" element={<ComingSoon title="Commandes préparées" />} />
+                  <Route path="/orders" element={<CommandesPage />} />
                   <Route path="/history" element={<ComingSoon title="Historique" />} />
                   <Route path="/delivery" element={<ComingSoon title="Réceptionner une livraison" />} />
                   <Route path="/suppliers" element={<SuppliersPage />} />
