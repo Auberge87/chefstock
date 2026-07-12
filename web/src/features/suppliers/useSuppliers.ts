@@ -34,9 +34,14 @@ export function useSupplierMutations() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['suppliers', org?.id] })
 
   const create = useMutation({
-    mutationFn: async (input: Partial<SupplierInput>) => {
-      const { error } = await supabase.from('suppliers').insert({ ...input, organization_id: org!.id })
+    mutationFn: async (input: Partial<SupplierInput>): Promise<string> => {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .insert({ ...input, organization_id: org!.id })
+        .select('id')
+        .single()
       if (error) throw error
+      return data.id
     },
     onSuccess: invalidate,
   })

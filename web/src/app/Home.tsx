@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useOrganization } from '../features/auth/useOrganization'
+import { ImportInvoiceModal } from '../features/import/ImportInvoiceModal'
 
 const QUICK_LINKS = [
   { to: '/products', icon: '🛒', label: 'Préparer' },
@@ -14,6 +16,7 @@ const QUICK_LINKS = [
 
 export function Home() {
   const { data: org, isLoading, error } = useOrganization()
+  const [showImport, setShowImport] = useState(false)
 
   return (
     <div>
@@ -32,6 +35,18 @@ export function Home() {
           Configurez votre restaurant pour commencer. <Link to="/onboarding">Configurer maintenant →</Link>
         </div>
       )}
+
+      <button
+        className="btn primary"
+        style={{
+          width: '100%', padding: 16, fontSize: 15, fontWeight: 600, marginBottom: 18,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}
+        onClick={() => setShowImport(true)}
+      >
+        📸 Importer une facture / fournisseur
+      </button>
+
       <div className="grid">
         {QUICK_LINKS.map((l) => (
           <Link key={l.to} to={l.to} className="card" style={{ textDecoration: 'none', textAlign: 'center' }}>
@@ -40,6 +55,8 @@ export function Home() {
           </Link>
         ))}
       </div>
+
+      {showImport && <ImportInvoiceModal onClose={() => setShowImport(false)} />}
     </div>
   )
 }
