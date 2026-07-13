@@ -33,7 +33,7 @@ export function ProductForm({ product, suppliers, onClose }: Props) {
   const [priceBasis, setPriceBasis] = useState(product?.price_basis ?? 'unit')
   const [unitWeightKg, setUnitWeightKg] = useState(String(product?.unit_weight_kg ?? ''))
   const [piecesPerUnit, setPiecesPerUnit] = useState(String(product?.pieces_per_unit ?? ''))
-  const [quick, setQuick] = useState((product?.quick_quantities ?? []).join(', '))
+  const [quick, setQuick] = useState(product ? (product.quick_quantities ?? []).join(', ') : '1')
   const [error, setError] = useState<string | null>(null)
 
   const busy = create.isPending || update.isPending || remove.isPending
@@ -170,6 +170,7 @@ export function ProductForm({ product, suppliers, onClose }: Props) {
           <div className="field">
             <label>Quantités rapides (séparées par des virgules)</label>
             <input value={quick} onChange={(e) => setQuick(e.target.value)} placeholder="1, 2, 5" />
+            <div className="small">Chaque bouton ajoute sa valeur à la quantité en cours (clics cumulables).</div>
           </div>
           <div className="field">
             <label>Fournisseurs *</label>

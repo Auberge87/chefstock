@@ -4,6 +4,7 @@ interface CartContextValue {
   quantities: Record<string, number>
   supplierChoice: Record<string, string>
   setQty: (productId: string, qty: number) => void
+  incrementQty: (productId: string, delta: number) => void
   setSupplierChoice: (productId: string, supplierId: string) => void
   clearCart: () => void
   itemCount: number
@@ -24,6 +25,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     })
   }
 
+  function incrementQty(productId: string, delta: number) {
+    setQuantities((q) => {
+      const next = { ...q }
+      const current = next[productId] ?? 0
+      const value = current + delta
+      if (value > 0) next[productId] = value
+      else delete next[productId]
+      return next
+    })
+  }
+
   function setSupplierChoice(productId: string, supplierId: string) {
     setSupplierChoiceState((s) => ({ ...s, [productId]: supplierId }))
   }
@@ -36,7 +48,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const itemCount = Object.keys(quantities).length
 
   return (
-    <CartContext.Provider value={{ quantities, supplierChoice, setQty, setSupplierChoice, clearCart, itemCount }}>
+    <CartContext.Provider
+      value={{ quantities, supplierChoice, setQty, incrementQty, setSupplierChoice, clearCart, itemCount }}
+    >
       {children}
     </CartContext.Provider>
   )

@@ -13,7 +13,7 @@ type BrowseMode = 'category' | 'supplier'
 export function OrderingPage() {
   const { data: products, isLoading } = useProducts()
   const { data: suppliers } = useSuppliers()
-  const { quantities, supplierChoice, setQty, setSupplierChoice, itemCount } = useCart()
+  const { quantities, supplierChoice, setQty, incrementQty, setSupplierChoice, itemCount } = useCart()
 
   const [browseMode, setBrowseMode] = useState<BrowseMode>('supplier')
   const [category, setCategory] = useState('Tous')
@@ -191,19 +191,19 @@ export function OrderingPage() {
                 </div>
               )}
               <div className="quickrow">
-                {p.quick_quantities.map((n) => (
+                {(p.quick_quantities.length ? p.quick_quantities : [1]).map((n) => (
                   <button
                     key={n}
                     type="button"
-                    className={`qbtn ${qty === n ? 'active' : ''}`}
+                    className="qbtn"
                     onClick={() => {
-                      setQty(p.id, n)
+                      incrementQty(p.id, n)
                       if (p.supplierIds.length > 1 && browseMode === 'supplier' && supplierFilter) {
                         setSupplierChoice(p.id, supplierFilter)
                       }
                     }}
                   >
-                    {n}
+                    +{n}
                   </button>
                 ))}
                 <button type="button" className="qedit" onClick={() => setEditingProduct(p)}>
