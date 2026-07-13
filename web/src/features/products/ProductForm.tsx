@@ -20,7 +20,7 @@ interface Props {
 export function ProductForm({ product, suppliers, onClose }: Props) {
   const { data: org } = useOrganization()
   const { data: products } = useProducts()
-  const { create, update } = useProductMutations()
+  const { create, update, remove } = useProductMutations()
   const rememberUnit = useRememberUnit()
 
   const [name, setName] = useState(product?.name ?? '')
@@ -36,7 +36,7 @@ export function ProductForm({ product, suppliers, onClose }: Props) {
   const [quick, setQuick] = useState((product?.quick_quantities ?? []).join(', '))
   const [error, setError] = useState<string | null>(null)
 
-  const busy = create.isPending || update.isPending
+  const busy = create.isPending || update.isPending || remove.isPending
   const units = allUnits(products, org?.units)
   const categories = [...new Set([...DEFAULT_CATEGORIES, ...(products ?? []).map((p) => p.category)])].filter(Boolean)
 
@@ -90,6 +90,13 @@ export function ProductForm({ product, suppliers, onClose }: Props) {
       }
       await create.mutateAsync(input)
     }
+    onClose()
+  }
+
+  async function handleDelete() {
+    if (!product) return
+    if (!confirm(`Supprimer définitivement « ${product.name} » ?`)) return
+    await remove.mutateAsync(product.id)
     onClose()
   }
 
@@ -188,6 +195,11 @@ export function ProductForm({ product, suppliers, onClose }: Props) {
             <button className="btn secondary" type="button" onClick={onClose}>
               Annuler
             </button>
+            {product && (
+              <button className="btn danger" type="button" onClick={handleDelete} disabled={busy}>
+                🗑 Supprimer
+              </button>
+            )}
           </div>
         </form>
       </div>
