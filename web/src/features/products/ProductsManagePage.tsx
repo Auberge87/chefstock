@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useSuppliers } from '../suppliers/useSuppliers'
 import { useProductMutations, useProducts, type ProductWithSuppliers } from './useProducts'
 import { ProductForm } from './ProductForm'
+import { MergeProductsModal } from './MergeProductsModal'
 import { similarity, SIM_KNOWN } from '../../lib/similarity'
 
 type SortMode = 'name' | 'supplier'
@@ -41,6 +42,7 @@ export function ProductsManagePage() {
   const [supplierFilter, setSupplierFilter] = useState<string>('')
   const [editing, setEditing] = useState<ProductWithSuppliers | null | 'new'>(null)
   const [showDupes, setShowDupes] = useState(false)
+  const [mergingGroup, setMergingGroup] = useState<ProductWithSuppliers[] | null>(null)
 
   const term = search.toLowerCase()
   const filtered = useMemo(
@@ -153,8 +155,11 @@ export function ProductsManagePage() {
           <h4 style={{ marginTop: 0 }}>Doublons potentiels</h4>
           {!duplicateGroups.length && <div className="small">Aucun doublon détecté.</div>}
           {duplicateGroups.map((g, i) => (
-            <div key={i} className="small" style={{ margin: '8px 0' }}>
-              {g.map((p) => p.name).join('  ≈  ')}
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, margin: '8px 0' }}>
+              <span className="small">{g.map((p) => p.name).join('  ≈  ')}</span>
+              <button className="btn secondary sm" onClick={() => setMergingGroup(g)}>
+                🔗 Fusionner
+              </button>
             </div>
           ))}
         </div>
@@ -196,6 +201,9 @@ export function ProductsManagePage() {
           suppliers={suppliers ?? []}
           onClose={() => setEditing(null)}
         />
+      )}
+      {mergingGroup && (
+        <MergeProductsModal group={mergingGroup} suppliers={suppliers ?? []} onClose={() => setMergingGroup(null)} />
       )}
     </div>
   )

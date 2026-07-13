@@ -105,7 +105,52 @@ export function useProductMutations() {
     onSuccess: invalidate,
   })
 
-  return { create, update, remove }
+  const merge = useMutation({
+    mutationFn: async ({ keepId, loserIds }: { keepId: string; loserIds: string[] }) => {
+      for (const loserId of loserIds) {
+        if (loserId === keepId) continue
+
+        // Reassign supplier links, dropping any that would duplicate an existing one.
+        const { data: links, error: linksErr } = await supabase
+          .from('product_suppliers')
+          .select('supplier_id')
+          .eq('product_id', loserId)
+        if (linksErr) throw linksErr
+        for (const link of links ?? []) {
+          await supabase
+            .from('product_suppliers')
+            .insert({ product_id: keepId, supplier_id: link.supplier_id, organization_id: org!.id })
+            .then(() => {}, () => {}) // ignore unique-constraint conflicts
+        }
+        await supabase.from('product_suppliers').delete().eq('product_id', loserId)
+
+        // Point historical order lines and price history at the keeper.
+        const { error: itemsErr } = await supabase.from('order_items').update({ product_id: keepId }).eq('product_id', loserId)
+        if (itemsErr) throw itemsErr
+        const { error: priceErr } = await supabase.from('price_history').update({ product_id: keepId }).eq('product_id', loserId)
+        if (priceErr) throw priceErr
+
+        // Inventory has a (organization_id, product_id) primary key — drop the loser's row
+        // if the keeper already has one tracked, otherwise move it over.
+        const { data: keeperInv } = await supabase.from('inventory').select('product_id').eq('product_id', keepId).maybeSingle()
+        if (keeperInv) {
+          await supabase.from('inventory').delete().eq('product_id', loserId)
+        } else {
+          await supabase.from('inventory').update({ product_id: keepId }).eq('product_id', loserId)
+        }
+
+        const { error: deactivateErr } = await supabase.from('products').update({ active: false }).eq('id', loserId)
+        if (deactivateErr) throw deactivateErr
+      }
+    },
+    onSuccess: () => {
+      invalidate()
+      queryClient.invalidateQueries({ queryKey: ['history', org?.id] })
+      queryClient.invalidateQueries({ queryKey: ['inventory', org?.id] })
+    },
+  })
+
+  return { create, update, remove, merge }
 }
 
 const DEFAULT_UNITS = [

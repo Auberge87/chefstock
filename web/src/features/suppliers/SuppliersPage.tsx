@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSuppliers, useSupplierMutations } from './useSuppliers'
 import { SupplierForm } from './SupplierForm'
+import { MergeSuppliersModal } from './MergeSuppliersModal'
+import { similarity, SIM_KNOWN } from '../../lib/similarity'
 import type { Supplier } from '../../types/database'
 
 const DAY_LABELS: Record<string, string> = {
@@ -13,10 +15,39 @@ const DAY_LABELS: Record<string, string> = {
   Sunday: 'Dimanche',
 }
 
+function findDuplicateGroups(suppliers: Supplier[]): Supplier[][] {
+  const parent = new Map<string, string>()
+  suppliers.forEach((s) => parent.set(s.id, s.id))
+  const find = (x: string): string => {
+    while (parent.get(x) !== x) {
+      parent.set(x, parent.get(parent.get(x)!)!)
+      x = parent.get(x)!
+    }
+    return x
+  }
+  const union = (a: string, b: string) => parent.set(find(a), find(b))
+
+  for (let i = 0; i < suppliers.length; i++) {
+    for (let j = i + 1; j < suppliers.length; j++) {
+      if (similarity(suppliers[i].name, suppliers[j].name) >= SIM_KNOWN) union(suppliers[i].id, suppliers[j].id)
+    }
+  }
+  const groups = new Map<string, Supplier[]>()
+  suppliers.forEach((s) => {
+    const root = find(s.id)
+    if (!groups.has(root)) groups.set(root, [])
+    groups.get(root)!.push(s)
+  })
+  return [...groups.values()].filter((g) => g.length > 1)
+}
+
 export function SuppliersPage() {
   const { data: suppliers, isLoading } = useSuppliers()
   const { remove } = useSupplierMutations()
   const [editing, setEditing] = useState<Supplier | null | 'new'>(null)
+  const [mergingGroup, setMergingGroup] = useState<Supplier[] | null>(null)
+
+  const duplicateGroups = useMemo(() => (suppliers ? findDuplicateGroups(suppliers) : []), [suppliers])
 
   return (
     <div>
@@ -26,6 +57,20 @@ export function SuppliersPage() {
           ＋ Nouveau
         </button>
       </div>
+
+      {!!duplicateGroups.length && (
+        <div className="notice">
+          <b>⚠ Doublons potentiels détectés :</b>
+          {duplicateGroups.map((g, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6 }}>
+              <span>{g.map((s) => `${s.icon} ${s.name}`).join('  ≈  ')}</span>
+              <button className="btn secondary sm" onClick={() => setMergingGroup(g)}>
+                🔗 Fusionner
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {isLoading && <div className="small">Chargement…</div>}
       {!isLoading && !suppliers?.length && <div className="box">Aucun fournisseur actif.</div>}
@@ -98,6 +143,7 @@ export function SuppliersPage() {
       {editing && (
         <SupplierForm supplier={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />
       )}
+      {mergingGroup && <MergeSuppliersModal group={mergingGroup} onClose={() => setMergingGroup(null)} />}
     </div>
   )
 }
