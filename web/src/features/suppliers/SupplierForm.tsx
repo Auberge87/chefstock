@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import type { Supplier } from '../../types/database'
-import { useSupplierMutations } from './useSuppliers'
+import { useSupplierMutations, useSuppliers } from './useSuppliers'
+import { similarity, SIM_MAYBE } from '../../lib/similarity'
 
 const DAYS = [
   { key: 'Monday', label: 'Lundi' },
@@ -21,6 +22,7 @@ interface Props {
 
 export function SupplierForm({ supplier, onClose }: Props) {
   const { create, update } = useSupplierMutations()
+  const { data: suppliers } = useSuppliers()
   const [name, setName] = useState(supplier?.name ?? '')
   const [icon, setIcon] = useState(supplier?.icon ?? '📦')
   const [orderingMethod, setOrderingMethod] = useState(supplier?.ordering_method ?? 'email')
@@ -51,8 +53,20 @@ export function SupplierForm({ supplier, onClose }: Props) {
       order_deadline: deadline.trim() || null,
       notes: notes.trim() || null,
     }
-    if (supplier) await update.mutateAsync({ id: supplier.id, ...input })
-    else await create.mutateAsync(input)
+    if (supplier) {
+      await update.mutateAsync({ id: supplier.id, ...input })
+    } else {
+      const bestMatch = suppliers
+        ?.map((s) => ({ s, sim: similarity(input.name, s.name) }))
+        .sort((a, b) => b.sim - a.sim)[0]
+      if (bestMatch && bestMatch.sim >= SIM_MAYBE) {
+        const proceed = confirm(
+          `Un fournisseur similaire existe déjà : « ${bestMatch.s.name} ».\n\nCréer quand même un nouveau fournisseur ?`,
+        )
+        if (!proceed) return
+      }
+      await create.mutateAsync(input)
+    }
     onClose()
   }
 

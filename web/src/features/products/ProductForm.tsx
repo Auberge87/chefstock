@@ -9,6 +9,7 @@ import {
   type ProductWithSuppliers,
 } from './useProducts'
 import { useOrganization } from '../auth/useOrganization'
+import { similarity, SIM_MAYBE } from '../../lib/similarity'
 
 interface Props {
   product?: ProductWithSuppliers | null
@@ -75,8 +76,20 @@ export function ProductForm({ product, suppliers, onClose }: Props) {
       supplierIds,
     }
 
-    if (product) await update.mutateAsync({ id: product.id, ...input })
-    else await create.mutateAsync(input)
+    if (product) {
+      await update.mutateAsync({ id: product.id, ...input })
+    } else {
+      const bestMatch = products
+        ?.map((p) => ({ p, sim: similarity(input.name, p.name) }))
+        .sort((a, b) => b.sim - a.sim)[0]
+      if (bestMatch && bestMatch.sim >= SIM_MAYBE) {
+        const proceed = confirm(
+          `Un produit similaire existe déjà : « ${bestMatch.p.name} ».\n\nCréer quand même un nouveau produit ?`,
+        )
+        if (!proceed) return
+      }
+      await create.mutateAsync(input)
+    }
     onClose()
   }
 

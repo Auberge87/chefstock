@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useProducts } from '../products/useProducts'
+import { useProducts, type ProductWithSuppliers } from '../products/useProducts'
 import { useSuppliers } from '../suppliers/useSuppliers'
 import { useCart } from './CartContext'
 import { pickSupplierFor } from './pickSupplier'
 import { unitPrice, pricePerKg, pricePerPiece } from '../../lib/pricing'
+import { ProductForm } from '../products/ProductForm'
 import type { Supplier } from '../../types/database'
 
 type BrowseMode = 'category' | 'supplier'
@@ -19,6 +20,7 @@ export function OrderingPage() {
   const [supplierFilter, setSupplierFilter] = useState('')
   const [search, setSearch] = useState('')
   const [selectedOnly, setSelectedOnly] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<ProductWithSuppliers | null>(null)
 
   const term = search.toLowerCase()
 
@@ -188,25 +190,26 @@ export function OrderingPage() {
                   Ligne : {lineTotal.toFixed(2)} €
                 </div>
               )}
-              {p.quick_quantities.length > 0 && (
-                <div className="quickrow">
-                  {p.quick_quantities.map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      className={`qbtn ${qty === n ? 'active' : ''}`}
-                      onClick={() => {
-                        setQty(p.id, n)
-                        if (p.supplierIds.length > 1 && browseMode === 'supplier' && supplierFilter) {
-                          setSupplierChoice(p.id, supplierFilter)
-                        }
-                      }}
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="quickrow">
+                {p.quick_quantities.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`qbtn ${qty === n ? 'active' : ''}`}
+                    onClick={() => {
+                      setQty(p.id, n)
+                      if (p.supplierIds.length > 1 && browseMode === 'supplier' && supplierFilter) {
+                        setSupplierChoice(p.id, supplierFilter)
+                      }
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button type="button" className="qedit" onClick={() => setEditingProduct(p)}>
+                  ✏️ Modifier
+                </button>
+              </div>
               {p.supplierIds.length > 1 && (
                 <select
                   className="fullsel"
@@ -237,6 +240,10 @@ export function OrderingPage() {
             </Link>
           </div>
         </div>
+      )}
+
+      {editingProduct && (
+        <ProductForm product={editingProduct} suppliers={suppliers ?? []} onClose={() => setEditingProduct(null)} />
       )}
     </div>
   )
