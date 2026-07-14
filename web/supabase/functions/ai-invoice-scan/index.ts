@@ -37,9 +37,16 @@ interface ScanRequest {
 
 function buildPrompt(categories: string[], units: string[]) {
   return `Tu analyses la photo d'une facture, d'un bon de livraison ou d'une commande d'un fournisseur alimentaire, pour un restaurant.
-Identifie le FOURNISSEUR et extrais chaque LIGNE DE PRODUIT. Ignore en-têtes non pertinents, adresses, totaux, TVA.
+Identifie le FOURNISSEUR et extrais chaque LIGNE DE PRODUIT.
+
+IMPORTANT — format des nombres : ces factures françaises utilisent la VIRGULE comme séparateur décimal, pas le point.
+"11,790" signifie 11,79 (onze euros soixante-dix-neuf), PAS onze mille sept cent quatre-vingt-dix. Convertis toujours vers un nombre décimal standard (point) dans le JSON, ex. 11.79.
+
+Ignore : en-têtes, adresses, mentions légales, lignes de sous-total/total par rayon (ex. "*** CAVE Total : 70,74", "*** EPICERIE SECHE Total : ..."), TVA, et toute ligne de continuation sous un produit qui ne fait que préciser un code GTIN/lot/date de péremption (ce n'est pas un nouveau produit).
+La colonne "Qté" (ou "Quantité") est la quantité commandée à utiliser — ne la confonds pas avec une colonne "Colisage" (nombre de colis/unités par carton) si les deux sont présentes.
+
 Réponds STRICTEMENT en JSON sans texte ni balises :
-{"supplierName":"nom du fournisseur ou null","products":[{"name":"nom court et propre en français","packaging":"conditionnement lu (ex. \\"Colis 5 kg\\") ou \\"\\"","unit":"unité de commande parmi (${units.join(', ')})","quantity": nombre ou 0,"unitPrice": prix unitaire HT (par unité de commande) en euros, nombre ou null si illisible,"category":"parmi (${categories.join(', ')})"}]}
+{"supplierName":"nom du fournisseur ou null","products":[{"name":"nom court et propre en français","packaging":"conditionnement lu (ex. \\"Colis 5 kg\\") ou \\"\\"","unit":"unité de commande parmi (${units.join(', ')})","quantity": nombre ou 0,"unitPrice": prix unitaire HT (par unité de commande) en euros, nombre décimal (point) ou null si illisible,"category":"parmi (${categories.join(', ')})"}]}
 Pour le prix : si seul un total de ligne est visible, calcule unitPrice = total ÷ quantity. N'invente jamais un prix non présent sur le document (mets null).
 Nettoie les noms (ex. "TOMATE GRAPPE COLIS 5KG" -> name:"Tomates grappe", packaging:"Colis 5 kg", unit:"colis"). N'invente rien.`
 }
