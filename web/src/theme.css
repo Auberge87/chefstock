@@ -106,3 +106,36 @@ main{max-width:1050px;margin:auto;padding:14px 14px 118px}
 .chip{border:1px solid var(--line);background:#f6f9f7;border-radius:999px;padding:8px 11px;font-weight:bold}
 
 @media(min-width:720px){.grid{grid-template-columns:repeat(3,1fr)}.list{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- dashboard ---------- */
+.section-title{display:flex;align-items:center;gap:8px;margin:22px 0 10px;font-size:15px;font-weight:700;color:var(--text)}
+.section-title .cnt{background:var(--line);color:var(--muted);border-radius:999px;padding:1px 8px;font-size:12px;font-weight:700}
+.section-title a{margin-left:auto;font-size:13px;font-weight:600;color:var(--g);text-decoration:none}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 1px 3px #00000008;text-decoration:none;color:inherit;display:block;border-left:4px solid var(--line);transition:transform .15s ease,box-shadow .15s ease}
+.kpi:hover{transform:translateY(-1px);box-shadow:0 4px 12px #00000012}
+.kpi .kpi-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.kpi .kpi-ico{font-size:18px}
+.kpi .kpi-val{font-size:24px;font-weight:700;line-height:1.1;color:var(--text)}
+.kpi .kpi-label{color:var(--muted);font-size:12.5px;margin-top:2px}
+.kpi.success{border-left-color:var(--g)}
+.kpi.warn{border-left-color:var(--warn)}
+.kpi.danger{border-left-color:var(--danger)}
+.kpi.info{border-left-color:var(--blue)}
+.kpi.neutral .kpi-val{color:var(--muted)}
+
+.insight{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:16px;padding:12px 14px;margin-bottom:8px;text-decoration:none;color:inherit}
+.insight .insight-ico{font-size:18px;flex:none;margin-top:1px}
+.insight .insight-text{font-size:13.5px;line-height:1.4}
+.insight .insight-text b{font-weight:700}
+.insight.success{border-left-color:var(--g)}
+.insight.warn{border-left-color:var(--warn)}
+.insight.danger{border-left-color:var(--danger)}
+.insight.info{border-left-color:var(--blue)}
+
+.progressbar{background:#eef2ef;border-radius:12px;height:8px;overflow:hidden}
+.progressbar > div{height:100%;transition:width .3s ease}
+
+@media(min-width:600px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:900px){.kpi-grid{grid-template-columns:repeat(5,1fr)}}

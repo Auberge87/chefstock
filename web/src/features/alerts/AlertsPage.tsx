@@ -16,7 +16,7 @@ function pct(a: Alert) {
   return (p > 0 ? '+' : '') + p.toFixed(1)
 }
 
-function AlertCard({ a, onDismiss }: { a: Alert; onDismiss: () => void }) {
+export function AlertCard({ a, onDismiss }: { a: Alert; onDismiss?: () => void }) {
   let inner: React.ReactNode = null
   let border = 'var(--g)'
 
@@ -71,9 +71,11 @@ function AlertCard({ a, onDismiss }: { a: Alert; onDismiss: () => void }) {
       style={{ borderLeft: `4px solid ${border}`, marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8 }}
     >
       <div style={{ minWidth: 0 }}>{inner}</div>
-      <button type="button" className="icobtn d" title="Supprimer l'alerte" style={{ flex: 'none' }} onClick={onDismiss}>
-        🗑
-      </button>
+      {onDismiss && (
+        <button type="button" className="icobtn d" title="Supprimer l'alerte" style={{ flex: 'none' }} onClick={onDismiss}>
+          🗑
+        </button>
+      )}
     </div>
   )
 }

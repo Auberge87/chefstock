@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useProducts } from '../products/useProducts'
 import { useInventory, useInventoryMutations } from './useInventory'
+import { categoryIcon } from '../../lib/categoryIcons'
 
 export function InventoryPage() {
   const { data: products } = useProducts()
@@ -79,7 +80,9 @@ export function InventoryPage() {
         return (
           <div className="box" key={row.product_id} style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 8, marginBottom: 6 }}>
-              <strong>{product?.name ?? row.product_id}</strong>
+              <strong>
+                {categoryIcon(product?.category)} {product?.name ?? row.product_id}
+              </strong>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{status}</span>
                 <button

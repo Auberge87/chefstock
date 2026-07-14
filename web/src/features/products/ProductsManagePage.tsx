@@ -4,6 +4,7 @@ import { useProductMutations, useProducts, type ProductWithSuppliers } from './u
 import { ProductForm } from './ProductForm'
 import { MergeProductsModal } from './MergeProductsModal'
 import { similarity, SIM_KNOWN } from '../../lib/similarity'
+import { categoryIcon } from '../../lib/categoryIcons'
 
 type SortMode = 'name' | 'supplier'
 
@@ -72,11 +73,14 @@ export function ProductsManagePage() {
     return (
       <div className="item" key={p.id}>
         <div className="mrow">
-          <div style={{ minWidth: 0 }}>
-            <div className="name">{p.name}</div>
-            <div className="meta">
-              {meta}
-              {supNames ? ` · ${supNames}` : ''}
+          <div style={{ minWidth: 0, display: 'flex', gap: 10 }}>
+            <span style={{ fontSize: 20, flex: 'none' }}>{categoryIcon(p.category)}</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="name">{p.name}</div>
+              <div className="meta">
+                {meta}
+                {supNames ? ` · ${supNames}` : ''}
+              </div>
             </div>
           </div>
           <div className="acts">

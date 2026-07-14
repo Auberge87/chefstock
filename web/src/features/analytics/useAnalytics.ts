@@ -57,7 +57,10 @@ export interface ProductStat {
   totalSpend: number
   ordersCount: number
   avgPricePerUnit: number | null
+  minPrice: number | null
+  maxPrice: number | null
   priceChangePct: number | null
+  priceChangeSince: Date | null
   priceDirection: 'up' | 'down' | 'flat' | null
   avgWeekly: number
   avgMonthly: number
@@ -324,13 +327,16 @@ export function usePurchasingStats(): PurchasingStats {
       const priorAvg = weightedAvgPrice(acc.pricePoints, sixtyDaysAgo, thirtyDaysAgo)
       let priceChangePct: number | null = null
       let priceDirection: 'up' | 'down' | 'flat' | null = null
+      let priceChangeSince: Date | null = null
       if (recentAvg != null && priorAvg != null && priorAvg > 0) {
         priceChangePct = ((recentAvg - priorAvg) / priorAvg) * 100
+        priceChangeSince = sixtyDaysAgo
       } else if (acc.pricePoints.length >= 2) {
         const sorted = [...acc.pricePoints].sort((a, b) => a.date.getTime() - b.date.getTime())
         const first = sorted[0].price
         const last = sorted[sorted.length - 1].price
         if (first > 0) priceChangePct = ((last - first) / first) * 100
+        priceChangeSince = sorted[0].date
       }
       if (priceChangePct != null) {
         priceDirection = priceChangePct > 1 ? 'up' : priceChangePct < -1 ? 'down' : 'flat'
@@ -339,6 +345,8 @@ export function usePurchasingStats(): PurchasingStats {
       const avgPricePerUnit =
         weightedAvgPrice(acc.pricePoints, sixMonthsAgo, now) ??
         (acc.pricePoints.length ? acc.pricePoints.reduce((s, p) => s + p.price * p.qty, 0) / acc.pricePoints.reduce((s, p) => s + p.qty, 0) : null)
+      const minPrice = acc.pricePoints.length ? Math.min(...acc.pricePoints.map((p) => p.price)) : null
+      const maxPrice = acc.pricePoints.length ? Math.max(...acc.pricePoints.map((p) => p.price)) : null
 
       const supplierBreakdown = [...acc.supplierBreakdown.values()].sort((a, b) => b.spend - a.spend)
       const product = acc.productId ? productsByKey.get(acc.productId) : undefined
@@ -354,7 +362,10 @@ export function usePurchasingStats(): PurchasingStats {
         totalSpend: acc.totalSpend,
         ordersCount: acc.ordersCount,
         avgPricePerUnit,
+        minPrice,
+        maxPrice,
         priceChangePct,
+        priceChangeSince,
         priceDirection,
         avgWeekly,
         avgMonthly,

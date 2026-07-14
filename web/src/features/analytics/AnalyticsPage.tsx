@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Pie } from 'react-chartjs-2'
 import { usePurchasingStats } from './useAnalytics'
+import { useInsights } from './useInsights'
+import { InsightList } from './InsightList'
+import { categoryIcon } from '../../lib/categoryIcons'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -16,6 +19,7 @@ function priceArrow(direction: 'up' | 'down' | 'flat' | null) {
 
 export function AnalyticsPage() {
   const stats = usePurchasingStats()
+  const { insights } = useInsights(12)
   const [search, setSearch] = useState('')
 
   const supplierLeaderboard = useMemo(() => [...stats.suppliers].sort((a, b) => b.spendThisMonth - a.spendThisMonth), [stats.suppliers])
@@ -77,6 +81,13 @@ export function AnalyticsPage() {
           </div>
         ))}
       </div>
+
+      {insights.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div className="section-title">💡 Analyse d'achat</div>
+          <InsightList insights={insights} />
+        </div>
+      )}
 
       {supplierLeaderboard.length > 0 && (
         <div className="box" style={{ marginBottom: 14 }}>
@@ -192,16 +203,19 @@ export function AnalyticsPage() {
               color: 'inherit',
             }}
           >
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600 }}>{p.name}</div>
-              <div className="small">
-                {p.avgWeekly.toFixed(1)} {p.unit}/sem · {p.avgMonthly.toFixed(1)} {p.unit}/mois
-                {p.avgPricePerUnit != null && (
-                  <>
-                    {' '}
-                    · {p.avgPricePerUnit.toFixed(2)} €/{p.unit} {priceArrow(p.priceDirection)}
-                  </>
-                )}
+            <div style={{ minWidth: 0, display: 'flex', gap: 10 }}>
+              <span style={{ fontSize: 20, flex: 'none' }}>{categoryIcon(p.category)}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 600 }}>{p.name}</div>
+                <div className="small">
+                  {p.avgWeekly.toFixed(1)} {p.unit}/sem · {p.avgMonthly.toFixed(1)} {p.unit}/mois
+                  {p.avgPricePerUnit != null && (
+                    <>
+                      {' '}
+                      · {p.avgPricePerUnit.toFixed(2)} €/{p.unit} {priceArrow(p.priceDirection)}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             <span className="small" style={{ flex: 'none' }}>

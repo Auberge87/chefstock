@@ -7,6 +7,7 @@ import { pickSupplierFor } from './pickSupplier'
 import { unitPrice, pricePerKg, pricePerPiece } from '../../lib/pricing'
 import { ProductForm } from '../products/ProductForm'
 import type { Supplier } from '../../types/database'
+import { categoryIcon } from '../../lib/categoryIcons'
 
 type BrowseMode = 'category' | 'supplier'
 
@@ -87,7 +88,7 @@ export function OrderingPage() {
         <div className="tabs">
           {categories.map((c) => (
             <button key={c} className={`tab ${category === c ? 'active' : ''}`} onClick={() => setCategory(c)}>
-              {c}
+              {c === 'Tous' ? c : `${categoryIcon(c)} ${c}`}
             </button>
           ))}
         </div>
@@ -155,17 +156,20 @@ export function OrderingPage() {
           return (
             <div className="item" key={p.id}>
               <div className="itemrow">
-                <div style={{ minWidth: 0 }}>
-                  <div className="name">{p.name}</div>
-                  <div className="meta">{meta}</div>
-                  <div className="small" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-                    <span style={{ fontWeight: 600, color: 'var(--g)' }}>
-                      {uPrice.toFixed(2)}€/{p.unit}
-                    </span>
-                    {ppKg != null && p.unit.toLowerCase() !== 'kg' && <span>{ppKg.toFixed(2)}€/kg</span>}
-                    {ppPiece != null && !['pièce', 'piece'].includes(p.unit.toLowerCase()) && (
-                      <span>{ppPiece.toFixed(2)}€/pc</span>
-                    )}
+                <div style={{ minWidth: 0, display: 'flex', gap: 10 }}>
+                  <span style={{ fontSize: 22, flex: 'none', lineHeight: '26px' }}>{categoryIcon(p.category)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="name">{p.name}</div>
+                    <div className="meta">{meta}</div>
+                    <div className="small" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--g)' }}>
+                        {uPrice.toFixed(2)}€/{p.unit}
+                      </span>
+                      {ppKg != null && p.unit.toLowerCase() !== 'kg' && <span>{ppKg.toFixed(2)}€/kg</span>}
+                      {ppPiece != null && !['pièce', 'piece'].includes(p.unit.toLowerCase()) && (
+                        <span>{ppPiece.toFixed(2)}€/pc</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="qtyline">
