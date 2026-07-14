@@ -264,6 +264,9 @@ main{max-width:1050px;margin:auto;padding:14px 14px 118px}
 <div class="actionrow" style="margin-top:6px"><button class="btn secondary" id="importMore">📸 Importer d’autres factures</button><button class="btn secondary" id="loadDemo">📋 Charger l’exemple</button></div>
 <div class="actionrow" style="margin-top:6px"><button class="btn secondary" id="seedDemo">🧪 Ajouter historique de démo</button><button class="btn secondary" id="clearDemo">🧹 Vider l’historique démo</button></div>
 <div class="actionrow" style="margin-top:6px"><button class="btn secondary" id="rerunSetup">🔁 Relancer la configuration</button><button class="btn danger" id="resetAll">🗑 Réinitialiser tout</button></div>
+<div class="stephead" style="margin-top:6px">Migration vers la nouvelle version</div>
+<div class="info">Exporte toutes tes données (fournisseurs, produits, historique des commandes, brouillons, stocks) dans un fichier à importer dans la nouvelle version de Chef Stock.</div>
+<div class="actionrow" style="margin-top:6px"><button class="btn primary" id="exportData">💾 Exporter mes données</button></div>
 </div></div>
 
 <script>
@@ -1750,6 +1753,16 @@ function clearDemoHistory(){
 $("seedDemo").onclick=seedDemoHistory;
 $("clearDemo").onclick=clearDemoHistory;
 $("resetAll").onclick=()=>{if(confirm("Réinitialiser TOUTE l’application ? Irréversible.")){localStorage.removeItem(CFG_KEY);localStorage.removeItem(RUN_KEY);location.hash="";location.reload()}};
+$("exportData").onclick=()=>{
+ const payload={exportedAt:new Date().toISOString(),config:{restaurant:(config&&config.restaurant)||{},suppliers:(config&&config.suppliers)||[],products:(config&&config.products)||[]},state:{history:state.history||[],savedDrafts:state.savedDrafts||[],inventory:state.inventory||{}}};
+ const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");
+ a.href=url;a.download="chefstock-export-"+new Date().toISOString().slice(0,10)+".json";
+ document.body.appendChild(a);a.click();a.remove();
+ URL.revokeObjectURL(url);
+ toast("Export téléchargé ✓");
+};
 
 /* ============================================================
    GLOBAL WIRING

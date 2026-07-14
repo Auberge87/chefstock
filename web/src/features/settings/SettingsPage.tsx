@@ -3,6 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
 import { useOrganization } from '../auth/useOrganization'
 import { seedDemoData } from '../onboarding/seedDemoData'
+import { seedDemoHistory } from '../onboarding/seedDemoHistory'
+import { ImportLegacyData } from './ImportLegacyData'
 
 export function SettingsPage() {
   const { data: org } = useOrganization()
@@ -23,6 +25,7 @@ export function SettingsPage() {
     setSignature(org.signature ?? '')
   }, [org])
   const [seeding, setSeeding] = useState(false)
+  const [seedingHistory, setSeedingHistory] = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -45,6 +48,21 @@ export function SettingsPage() {
       alert('Erreur : ' + (err as Error).message)
     } finally {
       setSeeding(false)
+    }
+  }
+
+  async function handleSeedHistory() {
+    if (!org) return
+    if (!confirm("Ajouter environ 20 semaines de commandes de démonstration (basées sur tes fournisseurs et produits actuels) ?")) return
+    setSeedingHistory(true)
+    try {
+      const result = await seedDemoHistory(org.id)
+      await queryClient.invalidateQueries()
+      alert(`Ajouté : ${result.orders} commandes, ${result.items} lignes de commande.`)
+    } catch (err) {
+      alert('Erreur : ' + (err as Error).message)
+    } finally {
+      setSeedingHistory(false)
     }
   }
 
@@ -94,7 +112,18 @@ export function SettingsPage() {
             {seeding ? '…' : '📋 Charger l’exemple'}
           </button>
         </div>
+        <p className="small" style={{ marginTop: 10 }}>
+          Génère ~20 semaines de commandes réalistes pour tes fournisseurs et produits actuels, pour voir la page
+          Statistiques avec des données.
+        </p>
+        <div className="actionrow">
+          <button className="btn secondary" onClick={handleSeedHistory} disabled={seedingHistory}>
+            {seedingHistory ? '…' : '🧪 Ajouter historique de démo'}
+          </button>
+        </div>
       </div>
+
+      <ImportLegacyData />
     </div>
   )
 }

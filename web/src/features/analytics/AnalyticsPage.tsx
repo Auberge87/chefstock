@@ -1,166 +1,215 @@
 import { useMemo, useState } from 'react'
-import { Chart as ChartJS, ArcElement, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend } from 'chart.js'
-import { Pie, Line } from 'react-chartjs-2'
-import { useAnalyticsOrders } from './useAnalytics'
-import { useSuppliers } from '../suppliers/useSuppliers'
+import { Link } from 'react-router-dom'
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
+import { Pie } from 'react-chartjs-2'
+import { usePurchasingStats } from './useAnalytics'
 
-ChartJS.register(ArcElement, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend)
+ChartJS.register(ArcElement, Tooltip, Legend)
 
 const CHART_CATEGORICAL = ['#2a78d6', '#1baf7a', '#eda100', '#008300', '#4a3aa7', '#e34948', '#e87ba4', '#eb6834']
 
-const RANGE_DAYS: Record<string, number> = { week: 7, month: 31, year: 366 }
+function priceArrow(direction: 'up' | 'down' | 'flat' | null) {
+  if (direction === 'up') return <span style={{ color: 'var(--danger)' }}>▲</span>
+  if (direction === 'down') return <span style={{ color: '#2a78d6' }}>▼</span>
+  return null
+}
 
 export function AnalyticsPage() {
-  const [range, setRange] = useState<'week' | 'month' | 'year'>('month')
-  const { data: orders, isLoading } = useAnalyticsOrders(RANGE_DAYS[range])
-  const { data: suppliers } = useSuppliers()
+  const stats = usePurchasingStats()
+  const [search, setSearch] = useState('')
 
-  const { totalSpend, bySupplier, byProduct, priceHistoryByName } = useMemo(() => {
-    let totalSpend = 0
-    const bySupplier = new Map<string, number>()
-    const byProduct = new Map<string, { qty: number; total: number; unit: string | null }>()
-    const priceHistoryByName = new Map<string, { date: Date; price: number }[]>()
+  const supplierLeaderboard = useMemo(() => [...stats.suppliers].sort((a, b) => b.spendThisMonth - a.spendThisMonth), [stats.suppliers])
 
-    for (const order of orders ?? []) {
-      for (const item of order.order_items) {
-        const lineTotal = (item.qty || 0) * (item.price || 0)
-        totalSpend += lineTotal
-        bySupplier.set(order.supplier_id, (bySupplier.get(order.supplier_id) ?? 0) + lineTotal)
-
-        const prod = byProduct.get(item.name_snapshot) ?? { qty: 0, total: 0, unit: item.unit }
-        prod.qty += item.qty || 0
-        prod.total += lineTotal
-        byProduct.set(item.name_snapshot, prod)
-
-        if (item.price) {
-          if (!priceHistoryByName.has(item.name_snapshot)) priceHistoryByName.set(item.name_snapshot, [])
-          priceHistoryByName.get(item.name_snapshot)!.push({ date: new Date(order.sent_at), price: item.price })
-        }
-      }
-    }
-    return { totalSpend, bySupplier, byProduct, priceHistoryByName }
-  }, [orders])
-
-  const supplierEntries = useMemo(() => {
-    let sorted = [...bySupplier.entries()].sort((a, b) => b[1] - a[1])
+  const supplierPie = useMemo(() => {
+    let sorted = supplierLeaderboard.filter((s) => s.spendThisMonth > 0)
     if (sorted.length > CHART_CATEGORICAL.length) {
       const head = sorted.slice(0, CHART_CATEGORICAL.length - 1)
       const rest = sorted.slice(CHART_CATEGORICAL.length - 1)
-      const autresTotal = rest.reduce((s, [, v]) => s + v, 0)
-      sorted = [...head, ['__autres', autresTotal]]
+      const autres = rest.reduce((s, x) => s + x.spendThisMonth, 0)
+      return [...head, { supplierId: '__autres', name: 'Autres', icon: '', spendThisMonth: autres } as (typeof sorted)[number]]
     }
     return sorted
-  }, [bySupplier])
+  }, [supplierLeaderboard])
 
-  const topProducts = useMemo(
-    () => [...byProduct.entries()].sort((a, b) => b[1].qty - a[1].qty).slice(0, 10),
-    [byProduct],
+  const topProductsByQtyThisMonth = useMemo(
+    () => [...stats.products].filter((p) => p.qtyThisMonth > 0).sort((a, b) => b.qtyThisMonth - a.qtyThisMonth).slice(0, 10),
+    [stats.products],
   )
 
-  const priceTrendTop5 = useMemo(
-    () =>
-      [...priceHistoryByName.entries()]
-        .sort((a, b) => b[1].length - a[1].length)
-        .slice(0, 5)
-        .map(([name, hist]) => [name, [...hist].sort((a, b) => a.date.getTime() - b.date.getTime())] as const),
-    [priceHistoryByName],
-  )
+  const priceMovers = useMemo(() => {
+    const withChange = stats.products.filter((p) => p.priceChangePct != null && p.priceDirection !== 'flat')
+    const up = [...withChange].filter((p) => p.priceDirection === 'up').sort((a, b) => (b.priceChangePct ?? 0) - (a.priceChangePct ?? 0)).slice(0, 5)
+    const down = [...withChange].filter((p) => p.priceDirection === 'down').sort((a, b) => (a.priceChangePct ?? 0) - (b.priceChangePct ?? 0)).slice(0, 5)
+    return { up, down }
+  }, [stats.products])
 
-  function supplierLabel(id: string) {
-    if (id === '__autres') return 'Autres'
-    return suppliers?.find((s) => s.id === id)?.name ?? id
-  }
+  const allProducts = useMemo(() => {
+    const term = search.toLowerCase()
+    return [...stats.products]
+      .filter((p) => p.name.toLowerCase().includes(term))
+      .sort((a, b) => b.totalSpend - a.totalSpend)
+  }, [stats.products, search])
 
   return (
     <div>
       <div className="top">
         <h2>📊 Statistiques</h2>
       </div>
-      <div className="toolbar" style={{ marginBottom: 14, gap: 6 }}>
-        {(['week', 'month', 'year'] as const).map((r) => (
-          <button
-            key={r}
-            className="btn secondary"
-            style={range === r ? { background: 'var(--g)', color: '#fff', border: 'none' } : {}}
-            onClick={() => setRange(r)}
+
+      {stats.isLoading && <div className="small">Chargement…</div>}
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+        {(
+          [
+            ['Cette semaine', stats.totalSpendThisWeek, stats.ordersThisWeek],
+            ['Ce mois-ci', stats.totalSpendThisMonth, stats.ordersThisMonth],
+            ['Cette année', stats.totalSpendThisYear, stats.ordersThisYear],
+          ] as const
+        ).map(([label, spend, count]) => (
+          <div
+            key={label}
+            className="box"
+            style={{ flex: '1 1 150px', background: 'linear-gradient(135deg,rgba(36,92,73,0.08),rgba(36,92,73,0.02))' }}
           >
-            {{ week: 'Semaine', month: 'Mois', year: 'Année' }[r]}
-          </button>
+            <div className="small">{label}</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--g)', margin: '4px 0' }}>{spend.toFixed(2)} €</div>
+            <div className="small">{count} commande{count > 1 ? 's' : ''}</div>
+          </div>
         ))}
       </div>
 
-      {isLoading && <div className="small">Chargement…</div>}
-
-      <div className="box" style={{ marginBottom: 14, background: 'linear-gradient(135deg,rgba(36,92,73,0.08),rgba(36,92,73,0.02))' }}>
-        <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--g)', margin: '8px 0' }}>≈ {totalSpend.toFixed(2)} €</div>
-        <div className="small">Commandes : {orders?.length ?? 0}</div>
-      </div>
-
-      {supplierEntries.length > 0 && (
+      {supplierLeaderboard.length > 0 && (
         <div className="box" style={{ marginBottom: 14 }}>
-          <h4 style={{ marginTop: 0 }}>Dépenses par fournisseur</h4>
+          <h4 style={{ marginTop: 0 }}>Dépenses par fournisseur (ce mois-ci)</h4>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ flex: '1 1 200px', minWidth: 180, maxHeight: 250 }}>
-              <Pie
-                data={{
-                  labels: supplierEntries.map(([id]) => supplierLabel(id)),
-                  datasets: [{ data: supplierEntries.map(([, v]) => v), backgroundColor: supplierEntries.map((_, i) => CHART_CATEGORICAL[i] ?? '#898781') }],
-                }}
-                options={{ plugins: { legend: { display: false } } }}
-              />
-            </div>
-            <div style={{ flex: '1 1 160px', minWidth: 150 }}>
-              {supplierEntries.map(([id, v], i) => (
-                <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0' }}>
-                  <span style={{ width: 12, height: 12, borderRadius: '50%', background: CHART_CATEGORICAL[i] ?? '#898781', flex: 'none' }} />
-                  <span style={{ flex: 1, fontSize: 13 }}>{supplierLabel(id)}</span>
-                  <span style={{ fontWeight: 600, fontSize: 13 }}>{v.toFixed(2)} €</span>
-                </div>
-              ))}
-              <div className="small" style={{ marginTop: 8 }}>
-                Total : {totalSpend.toFixed(2)} €
+            {supplierPie.length > 0 && (
+              <div style={{ flex: '1 1 200px', minWidth: 180, maxHeight: 250 }}>
+                <Pie
+                  data={{
+                    labels: supplierPie.map((s) => s.name),
+                    datasets: [{ data: supplierPie.map((s) => s.spendThisMonth), backgroundColor: supplierPie.map((_, i) => CHART_CATEGORICAL[i] ?? '#898781') }],
+                  }}
+                  options={{ plugins: { legend: { display: false } } }}
+                />
               </div>
+            )}
+            <div style={{ flex: '2 1 260px', minWidth: 220 }}>
+              {supplierLeaderboard.map((s) => (
+                <Link
+                  key={s.supplierId}
+                  to={`/analytics/supplier/${s.supplierId}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0', textDecoration: 'none', color: 'inherit' }}
+                >
+                  <span style={{ flex: 1, fontSize: 13 }}>
+                    {s.icon} {s.name}
+                  </span>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{s.spendThisMonth.toFixed(2)} €</span>
+                  <span className="small">›</span>
+                </Link>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {priceTrendTop5.length > 0 && (
+      {(priceMovers.up.length > 0 || priceMovers.down.length > 0) && (
         <div className="box" style={{ marginBottom: 14 }}>
-          <h4 style={{ marginTop: 0 }}>Tendance des prix (Top 5 produits)</h4>
-          <div style={{ maxHeight: 250 }}>
-            <Line
-              data={{
-                datasets: priceTrendTop5.map(([name, hist], i) => ({
-                  label: name,
-                  data: hist.map((h) => ({ x: h.date.toLocaleDateString('fr-FR'), y: h.price })),
-                  borderColor: CHART_CATEGORICAL[i] ?? '#898781',
-                  fill: false,
-                  tension: 0.3,
-                })),
-              }}
-              options={{ plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }}
-            />
+          <h4 style={{ marginTop: 0 }}>Évolution des prix</h4>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 220px' }}>
+              <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>▲ En hausse</div>
+              {priceMovers.up.length === 0 && <div className="small">Aucune hausse récente.</div>}
+              {priceMovers.up.map((p) => (
+                <Link
+                  key={p.key}
+                  to={`/analytics/product/${encodeURIComponent(p.key)}`}
+                  style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', textDecoration: 'none', color: 'inherit' }}
+                >
+                  <span style={{ fontSize: 13 }}>{p.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>+{(p.priceChangePct ?? 0).toFixed(0)}%</span>
+                </Link>
+              ))}
+            </div>
+            <div style={{ flex: '1 1 220px' }}>
+              <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>▼ En baisse</div>
+              {priceMovers.down.length === 0 && <div className="small">Aucune baisse récente.</div>}
+              {priceMovers.down.map((p) => (
+                <Link
+                  key={p.key}
+                  to={`/analytics/product/${encodeURIComponent(p.key)}`}
+                  style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', textDecoration: 'none', color: 'inherit' }}
+                >
+                  <span style={{ fontSize: 13 }}>{p.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#2a78d6' }}>{(p.priceChangePct ?? 0).toFixed(0)}%</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {topProducts.length > 0 && (
-        <div className="box">
-          <h4 style={{ marginTop: 0 }}>Top 10 produits par quantité</h4>
-          {topProducts.map(([name, v], i) => (
-            <div
-              key={name}
-              style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < topProducts.length - 1 ? '1px solid #eee' : 'none' }}
+      {topProductsByQtyThisMonth.length > 0 && (
+        <div className="box" style={{ marginBottom: 14 }}>
+          <h4 style={{ marginTop: 0 }}>Top produits achetés (ce mois-ci)</h4>
+          {topProductsByQtyThisMonth.map((p, i) => (
+            <Link
+              key={p.key}
+              to={`/analytics/product/${encodeURIComponent(p.key)}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '8px 0',
+                borderBottom: i < topProductsByQtyThisMonth.length - 1 ? '1px solid #eee' : 'none',
+                textDecoration: 'none',
+                color: 'inherit',
+              }}
             >
-              <strong>{name}</strong>
+              <strong>{p.name}</strong>
               <span className="small">
-                {v.qty.toFixed(1)} {v.unit} · {v.total.toFixed(2)} €
+                {p.qtyThisMonth.toFixed(1)} {p.unit} · {p.spendThisMonth.toFixed(2)} €
               </span>
-            </div>
+            </Link>
           ))}
         </div>
       )}
+
+      <div className="box">
+        <h4 style={{ marginTop: 0 }}>Tous les produits</h4>
+        <input className="search" placeholder="Rechercher un produit…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ marginBottom: 10 }} />
+        {allProducts.length === 0 && <div className="small">Aucun produit trouvé.</div>}
+        {allProducts.map((p, i) => (
+          <Link
+            key={p.key}
+            to={`/analytics/product/${encodeURIComponent(p.key)}`}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 0',
+              borderBottom: i < allProducts.length - 1 ? '1px solid #eee' : 'none',
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }}>{p.name}</div>
+              <div className="small">
+                {p.avgWeekly.toFixed(1)} {p.unit}/sem · {p.avgMonthly.toFixed(1)} {p.unit}/mois
+                {p.avgPricePerUnit != null && (
+                  <>
+                    {' '}
+                    · {p.avgPricePerUnit.toFixed(2)} €/{p.unit} {priceArrow(p.priceDirection)}
+                  </>
+                )}
+              </div>
+            </div>
+            <span className="small" style={{ flex: 'none' }}>
+              {p.totalSpend.toFixed(2)} € ›
+            </span>
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }

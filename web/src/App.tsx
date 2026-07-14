@@ -18,6 +18,8 @@ import { SettingsPage } from './features/settings/SettingsPage'
 import { InventoryPage } from './features/inventory/InventoryPage'
 import { AlertsPage } from './features/alerts/AlertsPage'
 import { AnalyticsPage } from './features/analytics/AnalyticsPage'
+import { ProductStatsPage } from './features/analytics/ProductStatsPage'
+import { SupplierStatsPage } from './features/analytics/SupplierStatsPage'
 import { ReceptionPage } from './features/delivery/ReceptionPage'
 
 function App() {
@@ -39,6 +41,8 @@ function App() {
                   <Route path="/delivery" element={<ReceptionPage />} />
                   <Route path="/suppliers" element={<SuppliersPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/analytics/product/:key" element={<ProductStatsPage />} />
+                  <Route path="/analytics/supplier/:id" element={<SupplierStatsPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/inventory" element={<InventoryPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
