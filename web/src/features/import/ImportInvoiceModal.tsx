@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { supabase } from '../../lib/supabaseClient'
 import { useSuppliers, useSupplierMutations } from '../suppliers/useSuppliers'
-import { useProducts, useProductMutations, DEFAULT_CATEGORIES, allUnits } from '../products/useProducts'
+import { useProducts, useProductMutations, DEFAULT_CATEGORIES, allUnits, type ProductWithSuppliers } from '../products/useProducts'
 import { useOrganization } from '../auth/useOrganization'
 import { scanInvoiceImages, fileToBase64, type ScanResult } from '../../lib/aiScan'
 import { similarity, SIM_KNOWN, SIM_SUPPLIER } from '../../lib/similarity'
@@ -14,7 +15,8 @@ interface ProductRow {
   unit: string
   packaging: string
   price: string
-  duplicateOf: string | null
+  duplicateOf: ProductWithSuppliers | null
+  updatePrice: boolean
 }
 
 export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
@@ -22,7 +24,7 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
   const { data: suppliers } = useSuppliers()
   const { data: products } = useProducts()
   const { create: createSupplier } = useSupplierMutations()
-  const { create: createProduct } = useProductMutations()
+  const { create: createProduct, update: updateProduct } = useProductMutations()
 
   const [scanning, setScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
@@ -35,7 +37,7 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
 
   const [rows, setRows] = useState<ProductRow[]>([])
   const [saving, setSaving] = useState(false)
-  const [result, setResult] = useState<{ supplier: string; count: number } | null>(null)
+  const [result, setResult] = useState<{ supplier: string; created: number; updated: number } | null>(null)
 
   async function handleFiles(files: FileList | null) {
     if (!files?.length) return
@@ -69,6 +71,7 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
             ?.map((existing) => ({ existing, sim: similarity(p.name, existing.name) }))
             .sort((a, b) => b.sim - a.sim)[0]
           const isDup = !!bestMatch && bestMatch.sim >= SIM_KNOWN
+          const priceDiffers = p.unitPrice != null && bestMatch && p.unitPrice !== bestMatch.existing.estimated_price
           return {
             selected: !isDup,
             name: p.name,
@@ -76,7 +79,8 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
             unit: p.unit || 'pièce',
             packaging: p.packaging || '',
             price: p.unitPrice != null ? String(p.unitPrice) : '',
-            duplicateOf: isDup ? bestMatch!.existing.name : null,
+            duplicateOf: isDup ? bestMatch!.existing : null,
+            updatePrice: isDup && !!priceDiffers,
           }
         }),
       )
@@ -96,7 +100,8 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
     try {
       let supplierId = existingSupplierId
       let supplierLabel = suppliers?.find((s) => s.id === existingSupplierId)?.name ?? ''
-      if (supplierMode === 'new') {
+      const needsSupplier = rows.some((r) => r.selected)
+      if (supplierMode === 'new' && needsSupplier) {
         if (!newSupplierName.trim()) {
           alert('Donnez un nom au fournisseur.')
           setSaving(false)
@@ -111,28 +116,58 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
         })
         supplierLabel = newSupplierName.trim()
       }
-      if (!supplierId) {
+      if (needsSupplier && !supplierId) {
         alert('Choisissez un fournisseur.')
         setSaving(false)
         return
       }
 
-      const toCreate = rows.filter((r) => r.selected)
-      for (const row of toCreate) {
-        await createProduct.mutateAsync({
-          name: row.name,
-          category: row.category,
-          unit: row.unit,
-          packaging: row.packaging || null,
-          quick_quantities: [],
-          estimated_price: Number(row.price) || 0,
-          price_basis: 'unit',
-          unit_weight_kg: 0,
-          pieces_per_unit: 0,
-          supplierIds: [supplierId],
-        })
+      let created = 0
+      let updated = 0
+
+      for (const row of rows) {
+        if (row.updatePrice && row.duplicateOf) {
+          const existing = row.duplicateOf
+          const newPrice = Number(row.price) || 0
+          await updateProduct.mutateAsync({
+            id: existing.id,
+            name: existing.name,
+            category: existing.category,
+            unit: existing.unit,
+            packaging: existing.packaging,
+            quick_quantities: existing.quick_quantities,
+            estimated_price: newPrice,
+            price_basis: existing.price_basis,
+            unit_weight_kg: existing.unit_weight_kg,
+            pieces_per_unit: existing.pieces_per_unit,
+            supplierIds: existing.supplierIds,
+          })
+          await supabase.from('price_history').insert({
+            organization_id: org!.id,
+            product_id: existing.id,
+            supplier_id: existing.supplierIds[0] ?? null,
+            price: newPrice,
+            source: 'import',
+          })
+          updated++
+        }
+        if (row.selected) {
+          await createProduct.mutateAsync({
+            name: row.name,
+            category: row.category,
+            unit: row.unit,
+            packaging: row.packaging || null,
+            quick_quantities: [],
+            estimated_price: Number(row.price) || 0,
+            price_basis: 'unit',
+            unit_weight_kg: 0,
+            pieces_per_unit: 0,
+            supplierIds: [supplierId],
+          })
+          created++
+        }
       }
-      setResult({ supplier: supplierLabel, count: toCreate.length })
+      setResult({ supplier: supplierLabel, created, updated })
     } catch (err) {
       alert("Erreur lors de l'import : " + (err as Error).message)
     } finally {
@@ -146,9 +181,15 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
         <div className="modal">
           <h3>Import terminé ✓</h3>
           <p>
-            Fournisseur : <b>{result.supplier}</b>
-            <br />
-            {result.count} produit(s) ajouté(s).
+            {result.supplier && (
+              <>
+                Fournisseur : <b>{result.supplier}</b>
+                <br />
+              </>
+            )}
+            {result.created > 0 && <>{result.created} produit(s) ajouté(s).<br /></>}
+            {result.updated > 0 && <>{result.updated} prix mis à jour.</>}
+            {!result.created && !result.updated && 'Aucune modification.'}
           </p>
           <div className="actionrow">
             <button className="btn primary" onClick={onClose}>
@@ -190,7 +231,7 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
         {scanResult && (
           <>
             <div className="field">
-              <label>Fournisseur</label>
+              <label>Fournisseur (pour les nouveaux produits)</label>
               <div className="segmented">
                 <button className={supplierMode === 'existing' ? 'active' : ''} onClick={() => setSupplierMode('existing')}>
                   Fournisseur existant
@@ -223,41 +264,68 @@ export function ImportInvoiceModal({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="field">
-              <label>Produits détectés ({rows.filter((r) => r.selected).length} sélectionné(s))</label>
+              <label>Produits détectés</label>
               <div className="list" style={{ gap: 8 }}>
                 {rows.map((row, i) => (
-                  <div className="item" key={i} style={{ opacity: row.duplicateOf ? 0.7 : 1 }}>
-                    <div className="mrow">
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                        <input type="checkbox" checked={row.selected} onChange={(e) => updateRow(i, { selected: e.target.checked })} />
-                        <input
-                          value={row.name}
-                          onChange={(e) => updateRow(i, { name: e.target.value })}
-                          style={{ fontWeight: 600, border: 'none', background: 'transparent', flex: 1, minWidth: 0 }}
-                        />
-                      </label>
-                    </div>
-                    {row.duplicateOf && (
-                      <div className="small" style={{ color: 'var(--warn)' }}>
-                        ⚠ Ressemble à « {row.duplicateOf} » — déjà dans votre catalogue
-                      </div>
-                    )}
-                    <div className="prow">
-                      <input value={row.category} onChange={(e) => updateRow(i, { category: e.target.value })} placeholder="Catégorie" />
-                      <input value={row.unit} onChange={(e) => updateRow(i, { unit: e.target.value })} placeholder="Unité" />
-                      <input value={row.packaging} onChange={(e) => updateRow(i, { packaging: e.target.value })} placeholder="Conditionnement" />
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={row.price}
-                        onChange={(e) => updateRow(i, { price: e.target.value })}
-                        placeholder="Prix €"
-                      />
-                    </div>
-                    {!row.price && (
-                      <div className="small" style={{ color: 'var(--muted)' }}>
-                        Prix non lu sur la photo — à compléter manuellement si besoin.
-                      </div>
+                  <div className="item" key={i}>
+                    {row.duplicateOf ? (
+                      <>
+                        <div className="mrow">
+                          <strong>{row.name}</strong>
+                          <span className="small">déjà dans votre catalogue : « {row.duplicateOf.name} »</span>
+                        </div>
+                        {row.price && Number(row.price) !== row.duplicateOf.estimated_price ? (
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                            <input
+                              type="checkbox"
+                              checked={row.updatePrice}
+                              onChange={(e) => updateRow(i, { updatePrice: e.target.checked })}
+                            />
+                            <span className="small">
+                              🔄 Mettre à jour le prix : <s>{row.duplicateOf.estimated_price.toFixed(2)} €</s> →{' '}
+                              <b style={{ color: 'var(--g)' }}>{Number(row.price).toFixed(2)} €</b>
+                            </span>
+                          </label>
+                        ) : (
+                          <div className="small" style={{ color: 'var(--muted)' }}>
+                            Prix identique ou non lu — rien à mettre à jour.
+                          </div>
+                        )}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                          <input type="checkbox" checked={row.selected} onChange={(e) => updateRow(i, { selected: e.target.checked })} />
+                          <span className="small">Créer quand même comme nouveau produit séparé</span>
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mrow">
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                            <input type="checkbox" checked={row.selected} onChange={(e) => updateRow(i, { selected: e.target.checked })} />
+                            <input
+                              value={row.name}
+                              onChange={(e) => updateRow(i, { name: e.target.value })}
+                              style={{ fontWeight: 600, border: 'none', background: 'transparent', flex: 1, minWidth: 0 }}
+                            />
+                          </label>
+                        </div>
+                        <div className="prow">
+                          <input value={row.category} onChange={(e) => updateRow(i, { category: e.target.value })} placeholder="Catégorie" />
+                          <input value={row.unit} onChange={(e) => updateRow(i, { unit: e.target.value })} placeholder="Unité" />
+                          <input value={row.packaging} onChange={(e) => updateRow(i, { packaging: e.target.value })} placeholder="Conditionnement" />
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={row.price}
+                            onChange={(e) => updateRow(i, { price: e.target.value })}
+                            placeholder="Prix €"
+                          />
+                        </div>
+                        {!row.price && (
+                          <div className="small" style={{ color: 'var(--muted)' }}>
+                            Prix non lu sur la photo — à compléter manuellement si besoin.
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ))}
